@@ -1,0 +1,110 @@
+"use client";
+
+import type { Question } from "../types";
+import { QuestionSingle } from "./QuestionSingle";
+import { QuestionMulti } from "./QuestionMulti";
+import { QuestionText } from "./QuestionText";
+import { Progress } from "./Progress";
+
+interface QuestionFlowProps {
+  questions: Question[];
+  answers: Record<string, string | string[]>;
+  currentIndex: number;
+  onAnswersChange: (answers: Record<string, string | string[]>) => void;
+  onStepChange: (index: number, answersSoFar?: Record<string, string | string[]>) => void;
+  onComplete: (answersSoFar?: Record<string, string | string[]>) => void;
+  onBack: () => void;
+  stepName: string;
+}
+
+export function QuestionFlow({
+  questions,
+  answers,
+  currentIndex,
+  onAnswersChange,
+  onStepChange,
+  onComplete,
+  onBack,
+  stepName,
+}: QuestionFlowProps) {
+  if (questions.length === 0) return null;
+  const question = questions[currentIndex];
+  if (!question) return null;
+
+  const setAnswer = (id: string, value: string | string[]) => {
+    onAnswersChange({ ...answers, [id]: value });
+  };
+
+  const goNext = (answersWithCurrent?: Record<string, string | string[]>) => {
+    const next = answersWithCurrent ?? answers;
+    if (currentIndex < questions.length - 1) {
+      onStepChange(currentIndex + 1, next);
+    } else {
+      onComplete(next);
+    }
+  };
+
+  const goBack = () => {
+    if (currentIndex > 0) {
+      onStepChange(currentIndex - 1);
+    } else {
+      onBack();
+    }
+  };
+
+  const progressLabel = `Question ${currentIndex + 1} of ${questions.length}`;
+
+  return (
+    <div className="min-h-screen flex flex-col p-6 sm:p-8">
+      <div className="mb-6 max-w-xl mx-auto w-full">
+        <Progress
+          current={currentIndex + 1}
+          total={questions.length}
+          label={progressLabel}
+        />
+      </div>
+      <div className="flex-1 flex flex-col justify-center">
+        {question.type === "single" && (
+          <QuestionSingle
+            question={question}
+            answers={answers}
+            value={(answers[question.id] as string) ?? null}
+            onChange={(v) => setAnswer(question.id, v)}
+            onNext={goNext}
+            required
+          />
+        )}
+        {question.type === "multi" && (
+          <QuestionMulti
+            question={question}
+            answers={answers}
+            value={((answers[question.id] as string[]) ?? []) as string[]}
+            onChange={(v) => setAnswer(question.id, v)}
+            onNext={goNext}
+            required
+          />
+        )}
+        {question.type === "text" && (
+          <QuestionText
+            question={question}
+            answers={answers}
+            value={(answers[question.id] as string) ?? ""}
+            onChange={(v) => setAnswer(question.id, v)}
+            onNext={goNext}
+            required
+          />
+        )}
+      </div>
+      <div className="mt-8 max-w-xl mx-auto w-full flex justify-between items-center">
+        <button
+          type="button"
+          onClick={goBack}
+          className="text-white/60 hover:text-white/90 text-sm focus:outline-none focus:ring-2 focus:ring-white/30 rounded px-2 py-1"
+          aria-label="Back"
+        >
+          ← Back
+        </button>
+      </div>
+    </div>
+  );
+}
