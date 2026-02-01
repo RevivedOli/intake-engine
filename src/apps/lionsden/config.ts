@@ -4,7 +4,7 @@ const config: AppConfig = {
   theme: {
     primaryColor: "#c0c0c0",
     background: "#0a0a0a",
-    fontFamily: "var(--font-serif)",
+    fontFamily: "'Poppins', sans-serif",
     layout: "centered",
   },
   steps: ["hero", "questions", "contact", "result"],
@@ -12,7 +12,7 @@ const config: AppConfig = {
     logoUrl: "/images/lionsden/logo.png",
     title: "WORK WITH ME",
     body: [
-      "After 13 years in the corporate world, £2B+ in sales closed, and mastering attention systems like no one else in the UK, I help salespeople and business owners land clients and grow their brand.",
+      "After 13 years in the corporate world, £3B+ in sales closed, and mastering attention systems like no one else in the UK, I help salespeople and business owners land clients and grow their brand.",
       "Take these 6 questions to see if this could be a fit for you.",
     ],
     ctaLabel: "",

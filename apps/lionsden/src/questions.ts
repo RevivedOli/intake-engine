@@ -10,7 +10,7 @@ export const questions: Question[] = [
       "Brand owner",
       "Building a personal brand",
       "Salesperson",
-      "Director",
+      "Business owner",
     ],
   },
   {
@@ -19,10 +19,12 @@ export const questions: Question[] = [
     question: "Which area do you need the most help with right now?",
     imageUrl: "/images/lionsden/family-1.jpg",
     options: [
-      "Revenue generation",
-      "Strategies",
+      "More Leads",
+      "Sales Systems",
+      "Strategic Planning",
+      "Team Management",
       "Personal development",
-      "Family",
+      "Family and relationships",
     ],
   },
   {

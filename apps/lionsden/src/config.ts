@@ -4,7 +4,7 @@ const config: AppConfig = {
   theme: {
     primaryColor: "#c0c0c0",
     background: "#0a0a0a",
-    fontFamily: "var(--font-serif)",
+    fontFamily: "'Poppins', sans-serif",
     layout: "centered",
   },
   steps: ["hero", "questions", "contact", "result"],
