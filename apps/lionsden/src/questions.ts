@@ -31,7 +31,12 @@ export const questions: Question[] = [
     type: "single",
     question: "What is your biggest frustration right now?",
     imageUrl: "/images/lionsden/social-1.jpg",
-    options: ["Time", "Money", "Knowledge", "Network"],
+    options: [
+      "Time", 
+      "Money", 
+      "Network",
+      "Knowledge"
+    ],
   },
   {
     id: "q4",
@@ -39,7 +44,7 @@ export const questions: Question[] = [
     question: "How long have you been following my account?",
     imageUrl: "/images/lionsden/family-4.jpg",
     options: [
-      "Less than 1 month",
+      "< 1 month",
       "Up to 6 months",
       "More than 6 months",
     ],
