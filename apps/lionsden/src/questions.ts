@@ -7,10 +7,10 @@ export const questions: Question[] = [
     question: "What describes you best?",
     imageUrl: "/images/lionsden/podcast-1.jpeg",
     options: [
-      "Brand owner",
-      "Building a personal brand",
       "Salesperson",
+      "Brand owner",
       "Business owner",
+      "Building a personal brand",
     ],
   },
   {
@@ -19,11 +19,10 @@ export const questions: Question[] = [
     question: "Which area do you need the most help with right now?",
     imageUrl: "/images/lionsden/family-1.jpg",
     options: [
-      "More Leads",
-      "Sales Systems",
       "Strategic Planning",
       "Team Management",
       "Personal development",
+      "Leads / Sales Systems",
       "Family and relationships",
     ],
   },
