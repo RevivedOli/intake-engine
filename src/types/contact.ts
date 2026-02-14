@@ -1,4 +1,4 @@
-export type ContactFieldType = "email" | "tel" | "text";
+export type ContactFieldType = "email" | "tel" | "text" | "instagram";
 
 export interface ContactField {
   id: string;

@@ -1,4 +1,13 @@
-import type { AppConfig } from "@/types/config";
+import type {
+  AppConfig,
+  CtaConfig,
+  CtaMultiChoiceOption,
+  CtaMultiChoiceOptionDiscount,
+  CtaMultiChoiceOptionLink,
+  CtaMultiChoiceOptionVideoDirect,
+  CtaMultiChoiceOptionVideoSubChoice,
+  CtaMultiChoiceOptionWebhook,
+} from "@/types/config";
 import type { ContactField } from "@/types/contact";
 import type { Question } from "@/types/question";
 
@@ -15,6 +24,126 @@ const DEFAULT_CONTACT_FIELDS: ContactField[] = [
   { id: "email", type: "email", label: "Email", required: true },
 ];
 
+const DEFAULT_CTA: CtaConfig = { type: "thank_you", message: "Thank you." };
+
+function normalizeCtaOption(raw: unknown, index: number): CtaMultiChoiceOption | null {
+  const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const id = typeof o.id === "string" ? o.id : `opt_${index + 1}`;
+  const label = typeof o.label === "string" ? o.label : "Option";
+  const kind = o.kind === "embed_video" || o.kind === "discount_code" || o.kind === "webhook_then_message" || o.kind === "link" ? o.kind : "embed_video";
+
+  if (kind === "embed_video") {
+    const variant = o.variant === "sub_choice" ? "sub_choice" : "direct";
+    const normButton = (b: unknown) => {
+      if (!b || typeof b !== "object") return undefined;
+      const x = b as Record<string, unknown>;
+      if (typeof x.label !== "string" || typeof x.url !== "string") return undefined;
+      return { label: x.label, url: x.url, color: typeof x.color === "string" ? x.color : undefined };
+    };
+    if (variant === "direct") {
+      return {
+        id,
+        label,
+        kind: "embed_video",
+        variant: "direct",
+        videoUrl: typeof o.videoUrl === "string" ? o.videoUrl : "",
+        title: typeof o.title === "string" ? o.title : undefined,
+        subtitle: typeof o.subtitle === "string" ? o.subtitle : undefined,
+        button: normButton(o.button),
+      } satisfies CtaMultiChoiceOptionVideoDirect;
+    }
+    const choices = Array.isArray(o.choices)
+      ? (o.choices as unknown[]).map((c: unknown, i: number) => {
+          const x = c && typeof c === "object" ? (c as Record<string, unknown>) : {};
+          return {
+            label: typeof x.label === "string" ? x.label : `Choice ${i + 1}`,
+            videoUrl: typeof x.videoUrl === "string" ? x.videoUrl : "",
+            title: typeof x.title === "string" ? x.title : undefined,
+            subtitle: typeof x.subtitle === "string" ? x.subtitle : undefined,
+            button: normButton(x.button),
+          };
+        })
+      : [];
+    const prompt = typeof o.prompt === "string" ? o.prompt : undefined;
+    const imageUrl = typeof o.imageUrl === "string" ? o.imageUrl : undefined;
+    const title = o.title !== undefined && typeof o.title === "string" ? o.title : undefined;
+    const subheading = o.subheading !== undefined && typeof o.subheading === "string" ? o.subheading : undefined;
+    return { id, label, kind: "embed_video", variant: "sub_choice", title, subheading, prompt, imageUrl, choices } satisfies CtaMultiChoiceOptionVideoSubChoice;
+  }
+
+  if (kind === "discount_code") {
+    return {
+      id,
+      label,
+      kind: "discount_code",
+      title: typeof o.title === "string" ? o.title : "",
+      description: typeof o.description === "string" ? o.description : undefined,
+      linkUrl: typeof o.linkUrl === "string" ? o.linkUrl : "",
+      linkLabel: typeof o.linkLabel === "string" ? o.linkLabel : undefined,
+      code: typeof o.code === "string" ? o.code : "",
+    } satisfies CtaMultiChoiceOptionDiscount;
+  }
+
+  if (kind === "link") {
+    return {
+      id,
+      label,
+      kind: "link",
+      url: typeof o.url === "string" ? o.url : "#",
+      openInNewTab: Boolean(o.openInNewTab),
+    } satisfies CtaMultiChoiceOptionLink;
+  }
+
+  return {
+    id,
+    label,
+    kind: "webhook_then_message",
+    webhookTag: typeof o.webhookTag === "string" ? o.webhookTag : "signup",
+    thankYouMessage: typeof o.thankYouMessage === "string" ? o.thankYouMessage : "Thank you. We'll be in touch.",
+    webhookUrl: typeof o.webhookUrl === "string" ? o.webhookUrl : undefined,
+  } satisfies CtaMultiChoiceOptionWebhook;
+}
+
+function normalizeCta(raw: unknown): CtaConfig {
+  const c = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const type = c.type === "thank_you" || c.type === "link" || c.type === "embed" || c.type === "multi_choice" ? c.type : "thank_you";
+
+  if (type === "thank_you") {
+    return { type: "thank_you", message: typeof c.message === "string" ? c.message : "Thank you." };
+  }
+  if (type === "link") {
+    return {
+      type: "link",
+      label: typeof c.label === "string" ? c.label : "Continue",
+      url: typeof c.url === "string" ? c.url : "#",
+      openInNewTab: Boolean(c.openInNewTab),
+    };
+  }
+  if (type === "embed") {
+    const button = c.button && typeof c.button === "object" ? (c.button as Record<string, unknown>) : undefined;
+    return {
+      type: "embed",
+      url: typeof c.url === "string" ? c.url : "",
+      title: typeof c.title === "string" ? c.title : undefined,
+      subtitle: typeof c.subtitle === "string" ? c.subtitle : undefined,
+      textBelow: typeof c.textBelow === "string" ? c.textBelow : undefined,
+      button: button && typeof button.label === "string" && typeof button.url === "string"
+        ? { label: button.label, url: button.url, color: typeof button.color === "string" ? button.color : undefined }
+        : undefined,
+    };
+  }
+  const optionsRaw = Array.isArray(c.options) ? c.options : [];
+  const options = optionsRaw.map((opt: unknown, i: number) => normalizeCtaOption(opt, i)).filter((o): o is CtaMultiChoiceOption => o !== null);
+  return {
+    type: "multi_choice",
+    title: typeof c.title === "string" ? c.title : undefined,
+    subheading: typeof c.subheading === "string" ? c.subheading : undefined,
+    prompt: typeof c.prompt === "string" ? c.prompt : undefined,
+    imageUrl: typeof c.imageUrl === "string" ? c.imageUrl : undefined,
+    options: options.length ? options : [{ id: "opt_1", label: "Option 1", kind: "embed_video", variant: "direct", videoUrl: "" }],
+  };
+}
+
 export function normalizeConfig(raw: unknown): AppConfig {
   const c = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const theme = (c.theme && typeof c.theme === "object" ? c.theme : {}) as Record<string, unknown>;
@@ -24,7 +153,7 @@ export function normalizeConfig(raw: unknown): AppConfig {
     const x = f && typeof f === "object" ? (f as Record<string, unknown>) : {};
     return {
       id: typeof x.id === "string" ? x.id : "email",
-      type: (x.type === "email" || x.type === "tel" || x.type === "text" ? x.type : "email") as "email" | "tel" | "text",
+      type: (x.type === "email" || x.type === "tel" || x.type === "text" || x.type === "instagram" ? x.type : "email") as "email" | "tel" | "text" | "instagram",
       label: typeof x.label === "string" ? x.label : "Email",
       required: Boolean(x.required),
       placeholder: typeof x.placeholder === "string" ? x.placeholder : undefined,
@@ -56,6 +185,7 @@ export function normalizeConfig(raw: unknown): AppConfig {
     contactImageUrl: typeof c.contactImageUrl === "string" ? c.contactImageUrl : undefined,
     defaultThankYouMessage: typeof c.defaultThankYouMessage === "string" ? c.defaultThankYouMessage : undefined,
     textQuestionButtonLabel: typeof c.textQuestionButtonLabel === "string" ? c.textQuestionButtonLabel : undefined,
+    cta: c.cta !== undefined && c.cta !== null ? normalizeCta(c.cta) : DEFAULT_CTA,
   };
 }
 

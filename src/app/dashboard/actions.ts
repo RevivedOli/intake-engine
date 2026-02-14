@@ -7,6 +7,9 @@ import {
   createTenant,
   updateTenant,
   getDomainsByTenantId,
+  addDomain,
+  removeDomain,
+  setPrimaryDomain,
   type CreateTenantInput,
   type UpdateTenantInput,
 } from "@/lib/db";
@@ -102,5 +105,71 @@ export async function updateTenantAction(
     if (typeof d === "string" && d.startsWith("NEXT_REDIRECT")) throw err;
     const message = err instanceof Error ? err.message : "Failed to save";
     return { error: message };
+  }
+}
+
+async function revalidateDomainsForTenant(tenantId: string) {
+  const domains = await getDomainsByTenantId(tenantId);
+  for (const d of domains) {
+    revalidateTag(`tenant-domain-${d}`);
+  }
+}
+
+export type DomainActionState = { error: string | null };
+
+export async function addDomainForTenantAction(
+  tenantId: string,
+  domain: string
+): Promise<DomainActionState> {
+  try {
+    await requireAuth();
+    if (!tenantId?.trim()) return { error: "Missing tenant id" };
+    const result = await addDomain(tenantId, domain);
+    if (!result.ok) return { error: result.error };
+    await revalidateDomainsForTenant(tenantId);
+    return { error: null };
+  } catch (err) {
+    const d = err && typeof err === "object" && "digest" in err ? (err as { digest?: string }).digest : undefined;
+    if (typeof d === "string" && d.startsWith("NEXT_REDIRECT")) throw err;
+    return { error: err instanceof Error ? err.message : "Failed to add domain" };
+  }
+}
+
+export async function removeDomainForTenantAction(
+  tenantId: string,
+  domain: string
+): Promise<DomainActionState> {
+  try {
+    await requireAuth();
+    if (!tenantId?.trim()) return { error: "Missing tenant id" };
+    const domainsBefore = await getDomainsByTenantId(tenantId);
+    const result = await removeDomain(tenantId, domain);
+    if (!result.ok) return { error: result.error };
+    for (const d of domainsBefore) {
+      revalidateTag(`tenant-domain-${d}`);
+    }
+    return { error: null };
+  } catch (err) {
+    const d = err && typeof err === "object" && "digest" in err ? (err as { digest?: string }).digest : undefined;
+    if (typeof d === "string" && d.startsWith("NEXT_REDIRECT")) throw err;
+    return { error: err instanceof Error ? err.message : "Failed to remove domain" };
+  }
+}
+
+export async function setPrimaryDomainAction(
+  tenantId: string,
+  domain: string
+): Promise<DomainActionState> {
+  try {
+    await requireAuth();
+    if (!tenantId?.trim()) return { error: "Missing tenant id" };
+    const result = await setPrimaryDomain(tenantId, domain);
+    if (!result.ok) return { error: result.error };
+    await revalidateDomainsForTenant(tenantId);
+    return { error: null };
+  } catch (err) {
+    const d = err && typeof err === "object" && "digest" in err ? (err as { digest?: string }).digest : undefined;
+    if (typeof d === "string" && d.startsWith("NEXT_REDIRECT")) throw err;
+    return { error: err instanceof Error ? err.message : "Failed to set primary domain" };
   }
 }

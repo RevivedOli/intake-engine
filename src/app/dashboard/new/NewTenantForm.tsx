@@ -9,8 +9,11 @@ import type { Question } from "@/types/question";
 import { normalizeConfig } from "../tenants/[id]/defaults";
 import { ConfigFormFields } from "../tenants/[id]/ConfigFormFields";
 import { ConfigPreview } from "../tenants/[id]/ConfigPreview";
+import { ContactFormFields } from "../tenants/[id]/ContactFormFields";
 import { QuestionsPreview } from "../tenants/[id]/QuestionsPreview";
 import { QuestionsFormFields } from "../tenants/[id]/QuestionsFormFields";
+import { CTAFormFields } from "../tenants/[id]/CTAFormFields";
+import { CTAPreview } from "../tenants/[id]/CTAPreview";
 
 const TOAST_DURATION_MS = 3000;
 const REDIRECT_DELAY_MS = 1500;
@@ -52,7 +55,7 @@ export function NewTenantForm() {
   const [error, setError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"config" | "questions">("config");
+  const [activeTab, setActiveTab] = useState<"config" | "contact" | "questions" | "cta">("config");
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
   const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
 
@@ -204,6 +207,17 @@ export function NewTenantForm() {
               </button>
               <button
                 type="button"
+                onClick={() => setActiveTab("contact")}
+                className={`px-4 py-2 text-sm font-medium rounded-t -mb-px ${
+                  activeTab === "contact"
+                    ? "bg-zinc-700 text-white border border-zinc-600 border-b-0"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                Contact
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveTab("questions")}
                 className={`px-4 py-2 text-sm font-medium rounded-t -mb-px ${
                   activeTab === "questions"
@@ -213,13 +227,30 @@ export function NewTenantForm() {
               >
                 Questions
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("cta")}
+                className={`px-4 py-2 text-sm font-medium rounded-t -mb-px ${
+                  activeTab === "cta"
+                    ? "bg-zinc-700 text-white border border-zinc-600 border-b-0"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                CTA
+              </button>
             </div>
 
             {activeTab === "config" && (
               <ConfigFormFields config={config} onChange={setConfig} />
             )}
+            {activeTab === "contact" && (
+              <ContactFormFields config={config} onChange={setConfig} />
+            )}
             {activeTab === "questions" && (
               <QuestionsFormFields questions={questions} onChange={setQuestions} />
+            )}
+            {activeTab === "cta" && (
+              <CTAFormFields config={config} onChange={setConfig} />
             )}
           </div>
 
@@ -246,10 +277,24 @@ export function NewTenantForm() {
             </div>
           </div>
         )}
+        {activeTab === "contact" && (
+          <div className="xl:w-[360px] xl:shrink-0">
+            <div className="xl:sticky xl:top-4">
+              <ConfigPreview config={config} />
+            </div>
+          </div>
+        )}
         {activeTab === "questions" && (
           <div className="xl:w-[360px] xl:shrink-0">
             <div className="xl:sticky xl:top-4">
               <QuestionsPreview questions={questions} config={config} />
+            </div>
+          </div>
+        )}
+        {activeTab === "cta" && (
+          <div className="xl:w-[360px] xl:shrink-0">
+            <div className="xl:sticky xl:top-4">
+              <CTAPreview config={config} />
             </div>
           </div>
         )}
