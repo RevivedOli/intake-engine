@@ -17,6 +17,118 @@ export interface HeroConfig {
   footerText?: string;
 }
 
+// --- CTA (post-submit) config ---
+
+export interface CtaThankYou {
+  type: "thank_you";
+  message?: string;
+}
+
+export interface CtaLink {
+  type: "link";
+  label: string;
+  url: string;
+  openInNewTab?: boolean;
+}
+
+export interface CtaEmbed {
+  type: "embed";
+  url: string;
+  title?: string;
+  subtitle?: string;
+  textBelow?: string;
+  button?: { label: string; url: string; color?: string };
+}
+
+/** One option in a multi-choice CTA: admin-defined label + one of four action kinds */
+export type CtaMultiChoiceOption =
+  | CtaMultiChoiceOptionVideoDirect
+  | CtaMultiChoiceOptionVideoSubChoice
+  | CtaMultiChoiceOptionDiscount
+  | CtaMultiChoiceOptionWebhook
+  | CtaMultiChoiceOptionLink;
+
+export interface CtaMultiChoiceOptionLink {
+  id: string;
+  label: string;
+  kind: "link";
+  url: string;
+  openInNewTab?: boolean;
+}
+
+export interface CtaMultiChoiceOptionVideoDirect {
+  id: string;
+  label: string;
+  kind: "embed_video";
+  variant: "direct";
+  videoUrl: string;
+  title?: string;
+  subtitle?: string;
+  button?: { label: string; url: string; color?: string };
+}
+
+export interface CtaMultiChoiceOptionVideoSubChoice {
+  id: string;
+  label: string;
+  kind: "embed_video";
+  variant: "sub_choice";
+  /** Title on sub-choice step. undefined = use main CTA title, "" = no title, string = override. */
+  title?: string;
+  /** Sub-heading on sub-choice step. undefined = use main CTA subheading, "" = none, string = override. */
+  subheading?: string;
+  /** Prompt shown above sub-choices (e.g. "Pick a topic:"). Falls back to main CTA prompt if not set. */
+  prompt?: string;
+  /** Image above sub-choices. Falls back to main CTA image if not set. */
+  imageUrl?: string;
+  choices: { label: string; videoUrl: string; title?: string; subtitle?: string; button?: { label: string; url: string; color?: string } }[];
+}
+
+export interface CtaMultiChoiceOptionDiscount {
+  id: string;
+  label: string;
+  kind: "discount_code";
+  title: string;
+  description?: string;
+  linkUrl: string;
+  linkLabel?: string;
+  code: string;
+}
+
+export interface CtaMultiChoiceOptionWebhook {
+  id: string;
+  label: string;
+  kind: "webhook_then_message";
+  webhookTag: string;
+  thankYouMessage: string;
+  webhookUrl?: string;
+}
+
+export interface CtaMultiChoice {
+  type: "multi_choice";
+  /** Optional title at top of CTA page (e.g. "What's next?") */
+  title?: string;
+  /** Optional sub-heading below title */
+  subheading?: string;
+  prompt?: string;
+  /** Optional image shown above the multi-choice options (ImageKit URL) */
+  imageUrl?: string;
+  options: CtaMultiChoiceOption[];
+}
+
+export type CtaConfig =
+  | CtaThankYou
+  | CtaLink
+  | CtaEmbed
+  | CtaMultiChoice;
+
+/** Resolved view when showing one outcome of a multi-choice CTA (or direct CTA) */
+export type CtaResolvedView =
+  | { kind: "thank_you"; message: string }
+  | { kind: "link"; label: string; url: string; openInNewTab?: boolean }
+  | { kind: "embed"; url: string; title?: string; subtitle?: string; textBelow?: string; button?: { label: string; url: string; color?: string } }
+  | { kind: "discount"; title: string; description?: string; linkUrl: string; linkLabel?: string; code: string }
+  | { kind: "embed_video"; videoUrl: string; title?: string; subtitle?: string; button?: { label: string; url: string; color?: string } };
+
 export interface AppConfig {
   theme: AppTheme;
   steps: FlowStep[];
@@ -30,4 +142,6 @@ export interface AppConfig {
   contactIntro?: string;
   /** Button label for text-type questions (e.g. "OK", "Next", "Submit"). Defaults to "OK". */
   textQuestionButtonLabel?: string;
+  /** Post-submit CTA: what to show after lead submits (in-app; n8n is fire-and-forget) */
+  cta?: CtaConfig;
 }

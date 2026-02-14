@@ -21,7 +21,14 @@ export async function forwardToN8n(payload: IntakeRequest): Promise<IntakeRespon
   if (!url) {
     throw new Error("N8N_WEBHOOK_URL is not set");
   }
+  return forwardToN8nWithUrl(url, payload);
+}
 
+/** POST to a specific URL (default or per-CTA override) with optional cta_tag in payload */
+export async function forwardToN8nWithUrl(
+  url: string,
+  payload: IntakeRequest & { cta_tag?: string }
+): Promise<IntakeResponseEnvelope> {
   const res = await fetch(url, {
     method: "POST",
     headers: getN8nHeaders(),

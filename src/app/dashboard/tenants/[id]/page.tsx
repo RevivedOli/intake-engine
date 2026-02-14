@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getTenantById } from "@/lib/db";
+import { getTenantById, getDomainRowsByTenantId } from "@/lib/db";
 import { EditTenantForm } from "./edit-tenant-form";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,10 @@ export default async function EditTenantPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const tenant = await getTenantById(id);
+  const [tenant, domains] = await Promise.all([
+    getTenantById(id),
+    getDomainRowsByTenantId(id),
+  ]);
   if (!tenant) notFound();
 
   return (
@@ -19,7 +22,7 @@ export default async function EditTenantPage({
       <p className="text-zinc-400 text-sm mb-6">
         ID: {id}
       </p>
-      <EditTenantForm tenant={tenant} tenantId={id} />
+      <EditTenantForm tenant={tenant} tenantId={id} domains={domains} />
     </div>
   );
 }

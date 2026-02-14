@@ -169,3 +169,108 @@ export async function getDomainsByTenantId(tenantId: string): Promise<string[]> 
   return (rows as { domain: string }[]).map((r) => String(r.domain));
 }
 
+export interface DomainRow {
+  domain: string;
+  is_primary: boolean;
+}
+
+/**
+ * Get all domains for a tenant with primary flag (for edit UI).
+ */
+export async function getDomainRowsByTenantId(tenantId: string): Promise<DomainRow[]> {
+  if (!sql) return [];
+  const rows = await sql`
+    SELECT domain, is_primary FROM domains WHERE tenant_id = ${tenantId}
+    ORDER BY is_primary DESC, domain ASC
+  `;
+  return (rows as { domain: string; is_primary: boolean }[]).map((r) => ({
+    domain: String(r.domain),
+    is_primary: Boolean(r.is_primary),
+  }));
+}
+
+/**
+ * Add a domain for a tenant. Domain is normalized (trim, lowercase).
+ * First domain for tenant gets is_primary = true. Returns error if domain already in use.
+ */
+export async function addDomain(
+  tenantId: string,
+  domain: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!sql) return { ok: false, error: "Database not configured" };
+  const normalized = domain.trim().toLowerCase();
+  if (!normalized) return { ok: false, error: "Domain is required" };
+  const existing = await sql`
+    SELECT 1 FROM domains WHERE domain = ${normalized} LIMIT 1
+  `;
+  if (existing.length > 0) return { ok: false, error: "Domain already in use" };
+  const current = await sql`
+    SELECT 1 FROM domains WHERE tenant_id = ${tenantId} LIMIT 1
+  `;
+  const isPrimary = current.length === 0;
+  try {
+    await sql`
+      INSERT INTO domains (tenant_id, domain, is_primary)
+      VALUES (${tenantId}, ${normalized}, ${isPrimary})
+    `;
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to add domain";
+    return { ok: false, error: msg };
+  }
+}
+
+/**
+ * Remove a domain for a tenant. If the removed domain was primary and others exist,
+ * sets the first remaining (by domain name) to primary.
+ */
+export async function removeDomain(
+  tenantId: string,
+  domain: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!sql) return { ok: false, error: "Database not configured" };
+  const normalized = domain.trim().toLowerCase();
+  const row = await sql`
+    SELECT is_primary FROM domains WHERE tenant_id = ${tenantId} AND domain = ${normalized} LIMIT 1
+  `;
+  if (row.length === 0) return { ok: true };
+  const wasPrimary = Boolean((row[0] as { is_primary: boolean }).is_primary);
+  await sql`
+    DELETE FROM domains WHERE tenant_id = ${tenantId} AND domain = ${normalized}
+  `;
+  if (wasPrimary) {
+    const remaining = await sql`
+      SELECT domain FROM domains WHERE tenant_id = ${tenantId} ORDER BY domain ASC LIMIT 1
+    `;
+    if (remaining.length > 0) {
+      const newPrimary = String((remaining[0] as { domain: string }).domain);
+      await sql`
+        UPDATE domains SET is_primary = true WHERE tenant_id = ${tenantId} AND domain = ${newPrimary}
+      `;
+    }
+  }
+  return { ok: true };
+}
+
+/**
+ * Set the given domain as the primary for this tenant.
+ */
+export async function setPrimaryDomain(
+  tenantId: string,
+  domain: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!sql) return { ok: false, error: "Database not configured" };
+  const normalized = domain.trim().toLowerCase();
+  const exists = await sql`
+    SELECT 1 FROM domains WHERE tenant_id = ${tenantId} AND domain = ${normalized} LIMIT 1
+  `;
+  if (exists.length === 0) return { ok: false, error: "Domain not found for this tenant" };
+  await sql`
+    UPDATE domains SET is_primary = false WHERE tenant_id = ${tenantId}
+  `;
+  await sql`
+    UPDATE domains SET is_primary = true WHERE tenant_id = ${tenantId} AND domain = ${normalized}
+  `;
+  return { ok: true };
+}
+

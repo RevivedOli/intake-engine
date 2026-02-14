@@ -172,7 +172,7 @@ export function ConfigPreview({ config }: { config: AppConfig }) {
                       {field.required && <span className="text-amber-400">*</span>}
                     </label>
                     <div className="w-full py-2 border-b border-white/30 text-white/50 text-xs">
-                      {field.placeholder ?? (field.type === "email" ? "you@example.com" : field.type === "tel" ? "e.g. 07400 123456" : "…")}
+                      {field.placeholder ?? (field.type === "email" ? "you@example.com" : field.type === "tel" ? "e.g. 07400 123456" : field.type === "instagram" ? "@username" : "…")}
                     </div>
                   </div>
                 ))

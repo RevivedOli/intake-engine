@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantById } from "@/lib/db";
-import { forwardToN8n, getWebhookUrl, normaliseResult } from "@/api/n8n";
-import type { IntakeRequest, IntakeResult } from "@/types";
+import { forwardToN8n, forwardToN8nWithUrl, getWebhookUrl } from "@/api/n8n";
+import type { IntakeRequest } from "@/types";
 
 function parseBody(body: unknown): IntakeRequest | null {
   if (!body || typeof body !== "object") return null;
@@ -25,6 +25,17 @@ function parseBody(body: unknown): IntakeRequest | null {
   return payload;
 }
 
+/** Optional: for CTA "webhook then message" option – tag and optional webhook URL override */
+function parseCtaAction(body: unknown): { cta_tag: string; cta_webhook_url?: string } | null {
+  if (!body || typeof body !== "object") return null;
+  const o = body as Record<string, unknown>;
+  if (typeof o.cta_tag !== "string" || !o.cta_tag.trim()) return null;
+  return {
+    cta_tag: o.cta_tag.trim(),
+    cta_webhook_url: typeof o.cta_webhook_url === "string" && o.cta_webhook_url.trim() ? o.cta_webhook_url.trim() : undefined,
+  };
+}
+
 function validateContact(
   contact: Record<string, string>,
   contactFields: { id: string; type: string; required?: boolean }[]
@@ -39,6 +50,12 @@ function validateContact(
       const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRe.test(trimmed)) {
         return { ok: false, message: "Invalid email address" };
+      }
+    }
+    if (trimmed && field.type === "instagram") {
+      const handle = trimmed.replace(/^@/, "").trim();
+      if (handle.length > 30 || !/^[a-zA-Z0-9._]+$/.test(handle)) {
+        return { ok: false, message: "Invalid Instagram handle" };
       }
     }
   }
@@ -77,43 +94,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const webhookUrl = getWebhookUrl();
-    if (!webhookUrl) {
-      // Stub: when no webhook is configured, return success so the funnel can be tested locally
-      if (payload.event === "progress") {
+    if (payload.event === "progress") {
+      const webhookUrl = getWebhookUrl();
+      if (!webhookUrl) {
         return NextResponse.json({ ok: true });
       }
-      return NextResponse.json({
-        result: { mode: "thank_you" as const, message: "Thanks. (No webhook configured – add N8N_WEBHOOK_URL to test n8n.)" },
-      });
-    }
-
-    const envelope = await forwardToN8n(payload);
-
-    if (payload.event === "progress") {
+      await forwardToN8n(payload);
       return NextResponse.json({ ok: true });
     }
 
-    if (envelope.status === "error") {
-      return NextResponse.json(
-        { error: "upstream_error", message: envelope.message ?? "n8n returned an error" },
-        { status: 502 }
-      );
+    // --- submit: fire-and-forget to n8n, always return useCtaConfig so client shows CTA from config ---
+    const ctaAction = parseCtaAction(body);
+    const webhookUrl = getWebhookUrl();
+    const targetUrl = ctaAction?.cta_webhook_url || webhookUrl;
+
+    if (ctaAction) {
+      // User clicked a "webhook then message" CTA option: send to n8n with tag (optional override URL)
+      if (targetUrl) {
+        const tagPayload = { ...payload, cta_tag: ctaAction.cta_tag };
+        forwardToN8nWithUrl(targetUrl, tagPayload).catch((err) => {
+          console.error("[intake] CTA webhook (tag) failed:", err);
+        });
+      }
+      return NextResponse.json({ ok: true });
     }
 
-    const result = normaliseResult(envelope);
-    if (!result) {
-      return NextResponse.json(
-        { error: "upstream_error", message: "Invalid response from n8n" },
-        { status: 502 }
-      );
+    // Initial form submit: fire-and-forget main webhook
+    if (webhookUrl) {
+      forwardToN8n(payload).catch((err) => {
+        console.error("[intake] Submit webhook failed:", err);
+      });
     }
-
-    const response: { result: IntakeResult } = { result };
-    if ("message" in envelope && envelope.message) {
-      (response as Record<string, unknown>).message = envelope.message;
-    }
-    return NextResponse.json(response);
+    return NextResponse.json({ ok: true, useCtaConfig: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Request to n8n failed";
     const isTimeout = message.includes("timeout") || message.includes("aborted");

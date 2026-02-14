@@ -19,11 +19,9 @@ export default async function DashboardPage() {
             >
               <div>
                 <span className="font-medium">{t.name ?? "Unnamed"}</span>
-                {t.domain && (
-                  <span className="text-zinc-400 text-sm ml-2">
-                    ({t.domain})
-                  </span>
-                )}
+                <span className="text-zinc-400 text-sm ml-2">
+                  {t.domain ? `(${t.domain})` : "(no domain)"}
+                </span>
               </div>
               <Link
                 href={`/dashboard/tenants/${t.id}`}

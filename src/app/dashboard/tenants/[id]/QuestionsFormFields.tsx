@@ -130,43 +130,12 @@ function SortableQuestionCard({
       </div>
 
       {hasOptions && (
-        <div>
-          <label className={labelClass}>Options (one per line)</label>
-          <div className="space-y-2">
-            {options.map((opt, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  type="text"
-                  value={opt}
-                  onChange={(e) => {
-                    const next = [...options];
-                    next[i] = e.target.value;
-                    onUpdate({ options: next });
-                  }}
-                  className={inputClass}
-                  placeholder={`Option ${i + 1}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = options.filter((_, j) => j !== i);
-                    onUpdate({ options: next });
-                  }}
-                  className="rounded border border-zinc-600 px-2 text-zinc-400 shrink-0"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => onUpdate({ options: [...options, ""] })}
-              className="rounded border border-zinc-600 px-3 py-2 text-zinc-300 text-sm"
-            >
-              Add option
-            </button>
-          </div>
-        </div>
+        <QuestionOptionsSortable
+          options={options}
+          onUpdate={onUpdate}
+          inputClass={inputClass}
+          labelClass={labelClass}
+        />
       )}
 
       <div>
@@ -202,6 +171,147 @@ function SortableQuestionCard({
   );
 }
 
+function QuestionOptionsSortable({
+  options,
+  onUpdate,
+  inputClass,
+  labelClass,
+}: {
+  options: string[];
+  onUpdate: (patch: Partial<Question>) => void;
+  inputClass: string;
+  labelClass: string;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+      keyboardCodes: { start: ["Enter"], end: ["Enter", "Tab"], cancel: ["Escape"] },
+    })
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = Number(active.id);
+    const newIndex = Number(over.id);
+    if (Number.isNaN(oldIndex) || Number.isNaN(newIndex)) return;
+    const next = arrayMove(options, oldIndex, newIndex);
+    onUpdate({ options: next });
+  }
+
+  return (
+    <div>
+      <label className={labelClass}>Options (one per line)</label>
+      <p className="text-xs text-zinc-500 mb-1">Drag the handle to reorder options.</p>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={options.map((_, i) => i)}
+          strategy={verticalListSortingStrategy}
+        >
+          <ul className="space-y-2 list-none pl-0">
+            {options.map((opt, i) => (
+              <li key={i}>
+                <SortableOptionRow
+                  value={opt}
+                  index={i}
+                  options={options}
+                  onUpdate={onUpdate}
+                  inputClass={inputClass}
+                />
+              </li>
+            ))}
+          </ul>
+        </SortableContext>
+      </DndContext>
+      <button
+        type="button"
+        onClick={() => onUpdate({ options: [...options, ""] })}
+        className="rounded border border-zinc-600 px-3 py-2 text-zinc-300 text-sm mt-2"
+      >
+        Add option
+      </button>
+    </div>
+  );
+}
+
+function SortableOptionRow({
+  value,
+  index,
+  options,
+  onUpdate,
+  inputClass,
+}: {
+  value: string;
+  index: number;
+  options: string[];
+  onUpdate: (patch: Partial<Question>) => void;
+  inputClass: string;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: index });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const updateOption = (newValue: string) => {
+    const next = [...options];
+    next[index] = newValue;
+    onUpdate({ options: next });
+  };
+
+  const removeOption = () => {
+    const next = options.filter((_, j) => j !== index);
+    onUpdate({ options: next });
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex gap-2 items-center ${isDragging ? "opacity-50" : ""}`}
+    >
+      <button
+        type="button"
+        className="touch-none cursor-grab active:cursor-grabbing text-zinc-500 p-1 rounded hover:bg-zinc-700 shrink-0"
+        {...attributes}
+        {...listeners}
+        aria-label="Drag to reorder"
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M7 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm0 6a1 1 0 011 1v1a1 1 0 11-2 0V9a1 1 0 011-1zm0 6a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm6-12a1 1 0 01.967.744L14.146 7.2 17 5.34 18.18 4.12a1 1 0 011.41 1.41l-1.82 1.82a1 1 0 01-.744.967L14 7.146V9a1 1 0 11-2 0V6.854l-1.012.252a1 1 0 01-.967-.744L10.82 4.12a1 1 0 011.41-1.41l1.82 1.82a1 1 0 01.744.967L14 5.854V4a1 1 0 011-1z" />
+        </svg>
+      </button>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => updateOption(e.target.value)}
+        className={inputClass}
+        placeholder={`Option ${index + 1}`}
+      />
+      <button
+        type="button"
+        onClick={removeOption}
+        className="rounded border border-zinc-600 px-2 text-zinc-400 shrink-0 hover:bg-zinc-700"
+      >
+        Remove
+      </button>
+    </div>
+  );
+}
+
 export function QuestionsFormFields({
   questions,
   onChange,
@@ -215,6 +325,7 @@ export function QuestionsFormFields({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
+      keyboardCodes: { start: ["Enter"], end: ["Enter", "Tab"], cancel: ["Escape"] },
     })
   );
 

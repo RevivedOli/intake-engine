@@ -43,6 +43,13 @@ export function ContactCapture({
         if (!emailRe.test(value)) next[field.id] = "Please enter a valid email.";
       } else if (field.type === "tel" && value && !/^[\d\s+()-]+$/.test(value)) {
         next[field.id] = "Please enter a valid phone number.";
+      } else if (field.type === "instagram" && value) {
+        const handle = value.replace(/^@/, "").trim();
+        if (handle.length === 0) {
+          next[field.id] = "Please enter your Instagram handle.";
+        } else if (handle.length > 30 || !/^[a-zA-Z0-9._]+$/.test(handle)) {
+          next[field.id] = "Please enter a valid Instagram handle (letters, numbers, dots, underscores only).";
+        }
       }
     }
     setErrors(next);
@@ -104,7 +111,7 @@ export function ContactCapture({
                 value={contact[field.id] ?? ""}
                 onChange={(e) => setValue(field.id, e.target.value)}
                 onBlur={() => setTouched((t) => ({ ...t, [field.id]: true }))}
-                placeholder={field.placeholder}
+                placeholder={field.placeholder ?? (field.type === "instagram" ? "@username" : undefined)}
                 className="w-full px-0 py-2 bg-transparent border-0 border-b border-white/30 text-white/90 placeholder-white/40 focus:outline-none focus:border-white/60"
                 aria-invalid={!!errors[field.id]}
                 aria-describedby={errors[field.id] ? `${field.id}-error` : undefined}

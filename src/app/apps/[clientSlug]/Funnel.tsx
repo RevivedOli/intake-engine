@@ -8,6 +8,12 @@ import { QuestionFlow } from "@/components/QuestionFlow";
 import { ContactCapture } from "@/components/ContactCapture";
 import { ResultScreen } from "@/components/ResultScreen";
 import type { AppConfig, FlowStep, IntakeResult } from "@/types";
+import type {
+  CtaConfig,
+  CtaMultiChoiceOption,
+  CtaMultiChoiceOptionVideoSubChoice,
+  CtaResolvedView,
+} from "@/types/config";
 
 const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"] as const;
 
@@ -49,6 +55,8 @@ export function Funnel({ appId, config, questions }: FunnelProps) {
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [contact, setContact] = useState<Record<string, string>>({});
   const [result, setResult] = useState<IntakeResult | null>(null);
+  const [ctaView, setCtaView] = useState<CtaResolvedView | null>(null);
+  const [subChoiceOption, setSubChoiceOption] = useState<CtaMultiChoiceOptionVideoSubChoice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -171,31 +179,99 @@ export function Funnel({ appId, config, questions }: FunnelProps) {
         setError(data.message ?? "Something went wrong. Please try again.");
         return;
       }
-      const r = data.result;
-      if (r && "job_id" in r) {
-        setResult(r);
-        setStep("result");
-        const jobId = r.job_id;
-        const poll = async () => {
-          const statusRes = await fetch(`/api/intake/status?job_id=${encodeURIComponent(jobId)}`);
-          const statusData = await statusRes.json();
-          if (statusData.result) {
-            setResult(statusData.result);
-            return;
-          }
-          setTimeout(poll, 2000);
-        };
-        setTimeout(poll, 2000);
-      } else if (r) {
-        setResult(r);
-        setStep("result");
-      }
+      setCtaView(null);
+      setSubChoiceOption(null);
+      setStep("result");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
   }, [buildPayload]);
+
+  const resolveCtaViewFromOption = useCallback((option: CtaMultiChoiceOption): CtaResolvedView | null => {
+    if (option.kind === "embed_video") {
+      if (option.variant === "direct") {
+        return {
+          kind: "embed_video",
+          videoUrl: option.videoUrl,
+          title: option.title,
+          subtitle: option.subtitle,
+          button: option.button,
+        };
+      }
+      return null;
+    }
+    if (option.kind === "discount_code") {
+      return {
+        kind: "discount",
+        title: option.title,
+        description: option.description,
+        linkUrl: option.linkUrl,
+        linkLabel: option.linkLabel,
+        code: option.code,
+      };
+    }
+    return null;
+  }, []);
+
+  const handleSelectOption = useCallback(
+    async (optionId: string, option: CtaMultiChoiceOption) => {
+      if (option.kind === "link") {
+        if (option.openInNewTab) {
+          window.open(option.url, "_blank", "noopener,noreferrer");
+        } else {
+          window.location.href = option.url;
+        }
+        return;
+      }
+      if (option.kind === "embed_video" && option.variant === "sub_choice") {
+        setSubChoiceOption(option);
+        setCtaView(null);
+        return;
+      }
+      const view = resolveCtaViewFromOption(option);
+      if (view) {
+        setCtaView(view);
+        setSubChoiceOption(null);
+        return;
+      }
+      if (option.kind === "webhook_then_message") {
+        try {
+          const body = {
+            ...buildPayload("submit"),
+            cta_tag: option.webhookTag,
+            ...(option.webhookUrl ? { cta_webhook_url: option.webhookUrl } : {}),
+          };
+          await fetch("/api/intake", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+        } catch {
+          // still show thank you
+        }
+        setCtaView({ kind: "thank_you", message: option.thankYouMessage });
+        setSubChoiceOption(null);
+      }
+    },
+    [buildPayload, resolveCtaViewFromOption]
+  );
+
+  const handleSelectSubChoice = useCallback((_optionId: string, subChoiceIndex: number) => {
+    if (!subChoiceOption || !("choices" in subChoiceOption)) return;
+    const choice = subChoiceOption.choices[subChoiceIndex];
+    if (choice) {
+      setCtaView({
+        kind: "embed_video",
+        videoUrl: choice.videoUrl,
+        title: choice.title,
+        subtitle: choice.subtitle,
+        button: choice.button,
+      });
+      setSubChoiceOption(null);
+    }
+  }, [subChoiceOption]);
 
   const currentStepName = config.steps[stepIndex];
 
@@ -255,9 +331,14 @@ export function Funnel({ appId, config, questions }: FunnelProps) {
           </>
         )}
 
-        {(step === "result" || (step === "contact" && result)) && result && (
+        {step === "result" && (
           <ResultScreen
-            result={result}
+            result={null}
+            cta={config.cta ?? { type: "thank_you", message: config.defaultThankYouMessage ?? "Thank you." }}
+            ctaView={ctaView}
+            subChoiceOption={subChoiceOption}
+            onSelectOption={config.cta?.type === "multi_choice" ? handleSelectOption : undefined}
+            onSelectSubChoice={config.cta?.type === "multi_choice" ? handleSelectSubChoice : undefined}
             defaultThankYouMessage={config.defaultThankYouMessage}
           />
         )}
