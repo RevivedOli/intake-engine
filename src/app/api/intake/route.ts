@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAppConfig } from "@/apps";
+import { getTenantById } from "@/lib/db";
 import { forwardToN8n, getWebhookUrl, normaliseResult } from "@/api/n8n";
 import type { IntakeRequest, IntakeResult } from "@/types";
 
@@ -56,8 +56,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const config = await getAppConfig(payload.app_id);
-    if (!config) {
+    const tenant = await getTenantById(payload.app_id);
+    if (!tenant) {
       return NextResponse.json(
         { error: "validation_failed", message: "Unknown app_id" },
         { status: 400 }
@@ -65,7 +65,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (payload.event === "submit") {
-      const validation = validateContact(payload.contact, config.contactFields);
+      const validation = validateContact(
+        payload.contact,
+        tenant.config.contactFields
+      );
       if (!validation.ok) {
         return NextResponse.json(
           { error: "validation_failed", message: validation.message },

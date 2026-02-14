@@ -15,6 +15,8 @@ interface QuestionFlowProps {
   onComplete: (answersSoFar?: Record<string, string | string[]>) => void;
   onBack: () => void;
   stepName: string;
+  /** Button label for text-type questions (default "OK") */
+  textQuestionButtonLabel?: string;
 }
 
 export function QuestionFlow({
@@ -26,6 +28,7 @@ export function QuestionFlow({
   onComplete,
   onBack,
   stepName,
+  textQuestionButtonLabel,
 }: QuestionFlowProps) {
   if (questions.length === 0) return null;
   const question = questions[currentIndex];
@@ -66,6 +69,7 @@ export function QuestionFlow({
       <div className="flex-1 flex flex-col justify-center">
         {question.type === "single" && (
           <QuestionSingle
+            key={question.id}
             question={question}
             answers={answers}
             value={(answers[question.id] as string) ?? null}
@@ -76,6 +80,7 @@ export function QuestionFlow({
         )}
         {question.type === "multi" && (
           <QuestionMulti
+            key={question.id}
             question={question}
             answers={answers}
             value={((answers[question.id] as string[]) ?? []) as string[]}
@@ -86,12 +91,14 @@ export function QuestionFlow({
         )}
         {question.type === "text" && (
           <QuestionText
+            key={question.id}
             question={question}
             answers={answers}
             value={(answers[question.id] as string) ?? ""}
             onChange={(v) => setAnswer(question.id, v)}
             onNext={goNext}
             required
+            submitButtonLabel={question.submitButtonLabel ?? textQuestionButtonLabel}
           />
         )}
       </div>
