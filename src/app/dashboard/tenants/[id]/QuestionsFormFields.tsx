@@ -19,6 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Question, QuestionType } from "@/types/question";
+import { ImageUrlField } from "@/components/ImageUrlField";
 
 const inputClass =
   "w-full px-3 py-2 rounded bg-zinc-800 border border-zinc-600 text-white";
@@ -169,14 +170,11 @@ function SortableQuestionCard({
       )}
 
       <div>
-        <label className={labelClass}>Image URL (optional)</label>
-        <input
-          type="text"
+        <ImageUrlField
+          label="Image URL (optional)"
           value={question.imageUrl ?? ""}
-          onChange={(e) =>
-            onUpdate({ imageUrl: e.target.value || undefined })
-          }
-          className={inputClass}
+          onChange={(v) => onUpdate({ imageUrl: v })}
+          placeholder="Paste URL or use ImageKit"
         />
       </div>
 
