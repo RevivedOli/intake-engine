@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AppConfig, FlowStep } from "@/types/config";
 import type { ContactField } from "@/types/contact";
+import { ImageUrlField } from "@/components/ImageUrlField";
 
 const inputClass =
   "w-full px-3 py-2 rounded bg-zinc-800 border border-zinc-600 text-white";
@@ -323,21 +324,19 @@ export function ConfigFormFields({
             </p>
           </div>
           <div>
-            <label className={labelClass}>Logo URL (optional)</label>
-            <input
-              type="text"
+            <ImageUrlField
+              label="Logo URL (optional)"
               value={hero?.logoUrl ?? ""}
-              onChange={(e) => updateHero({ logoUrl: e.target.value || undefined })}
-              className={inputClass}
+              onChange={(v) => updateHero({ logoUrl: v })}
+              placeholder="Paste URL or use ImageKit"
             />
           </div>
           <div>
-            <label className={labelClass}>Image URL (optional)</label>
-            <input
-              type="text"
+            <ImageUrlField
+              label="Image URL (optional)"
               value={hero?.imageUrl ?? ""}
-              onChange={(e) => updateHero({ imageUrl: e.target.value || undefined })}
-              className={inputClass}
+              onChange={(v) => updateHero({ imageUrl: v })}
+              placeholder="Paste URL or use ImageKit"
             />
           </div>
           <div>
@@ -447,17 +446,16 @@ export function ConfigFormFields({
             />
           </div>
           <div>
-            <label className={labelClass}>Contact image URL (optional)</label>
-            <input
-              type="text"
+            <ImageUrlField
+              label="Contact image URL (optional)"
               value={config.contactImageUrl ?? ""}
-              onChange={(e) =>
+              onChange={(v) =>
                 onChange({
                   ...config,
-                  contactImageUrl: e.target.value || undefined,
+                  contactImageUrl: v,
                 })
               }
-              className={inputClass}
+              placeholder="Paste URL or use ImageKit"
             />
           </div>
           <div>
