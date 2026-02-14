@@ -231,6 +231,7 @@ export function Funnel({ appId, config, questions }: FunnelProps) {
             onComplete={handleQuestionsComplete}
             onBack={handleQuestionsBack}
             stepName="questions"
+            textQuestionButtonLabel={config.textQuestionButtonLabel}
           />
         )}
 

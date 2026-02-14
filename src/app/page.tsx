@@ -1,46 +1,45 @@
-import Link from "next/link";
+import { unstable_cache } from "next/cache";
+import { headers } from "next/headers";
+import { getTenantByDomain } from "@/lib/db";
+import { Funnel } from "@/app/apps/[clientSlug]/Funnel";
+import { NotConfigured } from "@/components/NotConfigured";
 
-export default function HomePage() {
+const CACHE_REVALIDATE_SECONDS = 60;
+
+export default async function HomePage() {
+  const requestStart = Date.now();
+  console.log(`[Page] / handler entered at ${new Date().toISOString()}`);
+
+  const headersList = await headers();
+  const hostHeader =
+    headersList.get("x-forwarded-host") ??
+    headersList.get("host") ??
+    "localhost";
+  const host = hostHeader.includes(":") ? hostHeader.split(":")[0] : hostHeader;
+
+  const neonStart = Date.now();
+  const tenant = await unstable_cache(
+    () => getTenantByDomain(host),
+    ["tenant-by-domain", host],
+    { revalidate: CACHE_REVALIDATE_SECONDS, tags: [`tenant-domain-${host}`] }
+  )();
+  const neonMs = Date.now() - neonStart;
+
+  const totalMs = Date.now() - requestStart;
+  const otherMs = totalMs - neonMs;
+  console.log(
+    `[GET /] host=${host} | Neon (getTenantByDomain)=${neonMs}ms | other(headers/render)=${otherMs}ms | total=${totalMs}ms`
+  );
+
+  if (!tenant) {
+    return <NotConfigured />;
+  }
+
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-zinc-900 text-zinc-100">
-      <h1 className="text-2xl font-semibold mb-4">Intake Engine</h1>
-      <p className="text-zinc-400 mb-8 text-center max-w-md">
-        Multi-tenant onboarding funnels. Pick an app to start.
-      </p>
-      <ul className="flex flex-col gap-3">
-        <li>
-          <Link
-            href="/apps/elliot-wise"
-            className="text-amber-400 hover:underline"
-          >
-            Elliot Wise
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/apps/lionstone"
-            className="text-amber-400 hover:underline"
-          >
-            Lionstone
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/apps/peace-for-nature"
-            className="text-amber-400 hover:underline"
-          >
-            Peace for Nature
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/apps/lionsden"
-            className="text-amber-400 hover:underline"
-          >
-            Lions Den University
-          </Link>
-        </li>
-      </ul>
-    </main>
+    <Funnel
+      appId={tenant.id}
+      config={tenant.config}
+      questions={tenant.questions}
+    />
   );
 }

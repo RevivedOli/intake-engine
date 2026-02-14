@@ -13,18 +13,29 @@ export function Hero({ config, onStart }: HeroProps) {
   const bg = theme.background ?? "#1a2e28";
   const primary = theme.primaryColor ?? "#a47f4c";
   const fontFamily = theme.fontFamily ?? "var(--font-sans)";
+  const layout = theme.layout ?? "centered";
+  const isCentered = layout === "centered" || layout === "full-width";
+  const isLeft = layout === "left";
+
+  const outerClasses = [
+    "min-h-screen flex flex-col p-6 sm:p-8 transition-opacity duration-300 animate-fade-in",
+    isCentered ? "items-center justify-center" : isLeft ? "items-start justify-center" : "items-center justify-center",
+  ].join(" ");
+
+  const innerAlign = isCentered ? "text-center" : "text-left";
+  const innerJustify = isCentered ? "justify-center" : "justify-start";
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-6 sm:p-8 transition-opacity duration-300 animate-fade-in"
+      className={outerClasses}
       style={{
         background: bg.startsWith("http") ? `url(${bg}) center/cover` : bg,
         fontFamily,
       }}
     >
-      <div className="max-w-xl w-full text-center">
+      <div className={`max-w-xl w-full ${innerAlign}`}>
         {config.logoUrl && (
-          <div className="mb-8 flex justify-center">
+          <div className={`mb-8 flex ${innerJustify}`}>
             <img
               src={config.logoUrl}
               alt=""
@@ -33,7 +44,7 @@ export function Hero({ config, onStart }: HeroProps) {
           </div>
         )}
         {config.imageUrl && (
-          <div className="mb-6 flex justify-center">
+          <div className={`mb-6 flex ${innerJustify}`}>
             <img
               src={config.imageUrl}
               alt=""
@@ -46,24 +57,32 @@ export function Hero({ config, onStart }: HeroProps) {
             {config.title}
           </h1>
         )}
-        <div className="space-y-4 mb-8 text-white/80 text-left text-base sm:text-lg leading-relaxed">
+        <div
+          className={`space-y-4 mb-8 text-white/80 text-base sm:text-lg leading-relaxed ${innerAlign}`}
+        >
           {config.body.map((paragraph, i) => (
             <p key={i}>{paragraph}</p>
           ))}
         </div>
         {config.ctaLabel && (
-          <p className="text-white/70 text-sm mb-4">{config.ctaLabel}</p>
+          <p className={`text-white/70 text-sm mb-4 ${innerAlign}`}>
+            {config.ctaLabel}
+          </p>
         )}
-        <button
-          type="button"
-          onClick={onStart}
-          className="px-8 py-3 rounded-lg font-semibold text-white transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/50"
-          style={{ backgroundColor: primary }}
-        >
-          Start
-        </button>
+        <div className={isCentered ? "flex justify-center" : "flex justify-start"}>
+          <button
+            type="button"
+            onClick={onStart}
+            className="px-8 py-3 rounded-lg font-semibold text-white transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/50"
+            style={{ backgroundColor: primary }}
+          >
+            {config.buttonLabel ?? config.ctaLabel ?? "Start"}
+          </button>
+        </div>
         {config.footerText && (
-          <p className="mt-4 text-white/50 text-sm">{config.footerText}</p>
+          <p className={`mt-4 text-white/50 text-sm ${innerAlign}`}>
+            {config.footerText}
+          </p>
         )}
       </div>
     </div>

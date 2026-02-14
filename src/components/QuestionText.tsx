@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Question } from "@/types";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -11,6 +11,8 @@ interface QuestionTextProps {
   onChange: (value: string) => void;
   onNext: (answersWithCurrent?: Record<string, string | string[]>) => void;
   required?: boolean;
+  /** Button label (e.g. "OK", "Next"). Defaults to "OK". */
+  submitButtonLabel?: string;
 }
 
 export function QuestionText({
@@ -20,12 +22,25 @@ export function QuestionText({
   onChange,
   onNext,
   required,
+  submitButtonLabel = "OK",
 }: QuestionTextProps) {
   const theme = useTheme();
   const primary = theme.primaryColor ?? "#a47f4c";
   const fontFamily = theme.fontFamily ?? "var(--font-sans)";
   const [touched, setTouched] = useState(false);
   const showError = required && touched && !value.trim();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function autoGrow() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 192)}px`; // cap at ~max-h-48
+  }
+
+  useEffect(() => {
+    autoGrow();
+  }, [value]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,12 +70,17 @@ export function QuestionText({
         )}
         <div className="mt-4">
           <textarea
+            ref={textareaRef}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => {
+              onChange(e.target.value);
+              autoGrow();
+            }}
             onBlur={() => setTouched(true)}
             placeholder="Type your answer here..."
-            rows={3}
-            className="w-full px-4 py-3 rounded-lg border border-white/25 bg-white/5 text-white/90 placeholder-white/40 text-base focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/20 resize-y min-h-[88px] max-h-48"
+            rows={1}
+            className="w-full px-0 py-3 bg-transparent border-0 border-b border-white/30 text-white/90 placeholder-white/40 text-base focus:outline-none focus:border-white/60 focus:ring-0 resize-none overflow-y-auto min-h-[2.75rem] max-h-48 rounded-none"
+            style={{ height: "2.75rem" }}
             aria-invalid={showError}
             aria-describedby={showError ? "q-error" : undefined}
           />
@@ -70,13 +90,15 @@ export function QuestionText({
             </p>
           )}
         </div>
-        <button
-          type="submit"
-          className="mt-6 px-6 py-3 rounded-lg font-medium text-white focus:outline-none focus:ring-2 focus:ring-white/50"
-          style={{ backgroundColor: primary }}
-        >
-          OK
-        </button>
+        <div className="mt-6 flex justify-center">
+          <button
+            type="submit"
+            className="px-6 py-3 rounded-lg font-medium text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+            style={{ backgroundColor: primary }}
+          >
+            {submitButtonLabel}
+          </button>
+        </div>
       </form>
     </div>
   );
