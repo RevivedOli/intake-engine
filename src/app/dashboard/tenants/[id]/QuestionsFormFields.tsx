@@ -18,7 +18,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Question, QuestionType } from "@/types/question";
+import type { Question, QuestionType, ContactKind } from "@/types/question";
 import { ImageUrlField } from "@/components/ImageUrlField";
 
 const inputClass =
@@ -29,6 +29,14 @@ const QUESTION_TYPES: { value: QuestionType; label: string }[] = [
   { value: "single", label: "Single choice" },
   { value: "multi", label: "Multiple choice" },
   { value: "text", label: "Text (free input)" },
+  { value: "contact", label: "Contact details" },
+];
+
+const CONTACT_KINDS: { value: ContactKind; label: string }[] = [
+  { value: "email", label: "Email" },
+  { value: "tel", label: "Phone number" },
+  { value: "instagram", label: "Instagram" },
+  { value: "text", label: "Text (plain)" },
 ];
 
 function nextQuestionId(questions: Question[]): string {
@@ -66,7 +74,35 @@ function SortableQuestionCard({
   };
 
   const hasOptions = question.type === "single" || question.type === "multi";
+  const isContact = question.type === "contact";
   const options = question.options ?? [];
+
+  function handleTypeChange(newType: QuestionType) {
+    if (newType === "contact") {
+      onUpdate({
+        type: "contact",
+        options: undefined,
+        contactKind: "email",
+        label: "Email",
+        placeholder: "you@example.com",
+        required: true,
+      });
+    } else if (question.type === "contact") {
+      onUpdate({
+        type: newType,
+        contactKind: undefined,
+        label: undefined,
+        placeholder: undefined,
+        required: undefined,
+        options: newType === "single" || newType === "multi" ? [] : undefined,
+      });
+    } else {
+      onUpdate({
+        type: newType,
+        options: (newType === "single" || newType === "multi") ? (question.options ?? []) : undefined,
+      });
+    }
+  }
 
   return (
     <div
@@ -102,12 +138,7 @@ function SortableQuestionCard({
         <label className={labelClass}>Type</label>
         <select
           value={question.type}
-          onChange={(e) =>
-            onUpdate({
-              type: e.target.value as QuestionType,
-              options: (e.target.value === "single" || e.target.value === "multi") ? (question.options ?? []) : undefined,
-            })
-          }
+          onChange={(e) => handleTypeChange(e.target.value as QuestionType)}
           className={inputClass}
         >
           {QUESTION_TYPES.map((o) => (
@@ -118,16 +149,63 @@ function SortableQuestionCard({
         </select>
       </div>
 
+      {isContact && (
+        <div>
+          <label className={labelClass}>Contact type</label>
+          <select
+            value={question.contactKind ?? "email"}
+            onChange={(e) => onUpdate({ contactKind: e.target.value as ContactKind })}
+            className={inputClass}
+          >
+            {CONTACT_KINDS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div>
         <label className={labelClass}>Question text</label>
         <textarea
           rows={2}
           value={question.question}
           onChange={(e) => onUpdate({ question: e.target.value })}
-          placeholder="e.g. What best describes you?"
+          placeholder={isContact ? "e.g. What's your email?" : "e.g. What best describes you?"}
           className={inputClass}
         />
       </div>
+
+      {isContact && (
+        <>
+          <div>
+            <label className={labelClass}>Label (optional)</label>
+            <input
+              type="text"
+              value={question.label ?? ""}
+              onChange={(e) =>
+                onUpdate({ label: e.target.value.trim() === "" ? undefined : e.target.value })
+              }
+              placeholder="e.g. Email address"
+              className={inputClass}
+            />
+            <p className="text-xs text-zinc-500 mt-1">Shown next to the input. Leave blank to use question text.</p>
+          </div>
+          <div>
+            <label className={labelClass}>Placeholder / hint (optional)</label>
+            <input
+              type="text"
+              value={question.placeholder ?? ""}
+              onChange={(e) =>
+                onUpdate({ placeholder: e.target.value.trim() === "" ? undefined : e.target.value })
+              }
+              placeholder={question.contactKind === "email" ? "you@example.com" : question.contactKind === "tel" ? "Phone Number" : question.contactKind === "instagram" ? "@username" : ""}
+              className={inputClass}
+            />
+          </div>
+        </>
+      )}
 
       {hasOptions && (
         <QuestionOptionsSortable
@@ -147,7 +225,7 @@ function SortableQuestionCard({
         />
       </div>
 
-      {question.type === "text" && (
+      {(question.type === "text" || question.type === "contact") && (
         <div>
           <label className={labelClass}>Button label (optional)</label>
           <input

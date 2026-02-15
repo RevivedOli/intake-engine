@@ -104,7 +104,12 @@ export function CTAPreview({ config }: { config: AppConfig }) {
       };
     }
     if (selectedOption.kind === "webhook_then_message") {
-      return { kind: "thank_you", message: selectedOption.thankYouMessage };
+      return {
+        kind: "thank_you",
+        message: selectedOption.thankYouMessage,
+        header: selectedOption.thankYouHeader?.trim() || undefined,
+        subheading: selectedOption.thankYouSubheading?.trim() || undefined,
+      };
     }
     return null;
   })();
@@ -169,7 +174,9 @@ export function CTAPreview({ config }: { config: AppConfig }) {
                 />
               </div>
             )}
-            <p className="text-white/80 text-sm">{subChoiceOption.prompt ?? cta.prompt ?? "Choose one:"}</p>
+            {(subChoiceOption.prompt ?? cta.prompt ?? "").trim() && (
+              <p className="text-white/80 text-sm">{(subChoiceOption.prompt ?? cta.prompt ?? "").trim()}</p>
+            )}
             <div className="flex flex-col gap-2">
               {subChoiceOption.choices.map((choice, idx) => (
                 <button
@@ -300,7 +307,17 @@ function ResolvedPreviewView({
 }) {
   if (view.kind === "thank_you") {
     return (
-      <p className="text-sm text-white/95 max-w-[280px] whitespace-pre-line">{view.message}</p>
+      <div className="w-full space-y-2 text-center">
+        {view.header?.trim() && (
+          <p className="text-sm font-bold text-white/95">{view.header.trim()}</p>
+        )}
+        {view.subheading?.trim() && (
+          <p className="text-xs text-white/80">{view.subheading.trim()}</p>
+        )}
+        {view.message?.trim() && (
+          <p className="text-sm text-white/95 max-w-[280px] mx-auto whitespace-pre-line">{view.message.trim()}</p>
+        )}
+      </div>
     );
   }
   if (view.kind === "link") {

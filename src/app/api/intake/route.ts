@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantById } from "@/lib/db";
 import { forwardToN8n, forwardToN8nWithUrl, getWebhookUrl } from "@/api/n8n";
-import type { IntakeRequest } from "@/types";
+import type { IntakeRequest, Question } from "@/types";
 
 function parseBody(body: unknown): IntakeRequest | null {
   if (!body || typeof body !== "object") return null;
@@ -58,6 +58,12 @@ function validateContact(
         return { ok: false, message: "Invalid Instagram handle" };
       }
     }
+    if (trimmed && field.type === "tel") {
+      const digits = trimmed.replace(/\D/g, "");
+      if (digits.length < 10) {
+        return { ok: false, message: "Invalid phone number" };
+      }
+    }
   }
   return { ok: true };
 }
@@ -82,9 +88,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (payload.event === "submit") {
+      const contactFieldsFromQuestions = (tenant.questions ?? [])
+        .filter((q: Question) => q.type === "contact")
+        .map((q: Question) => ({
+          id: q.id,
+          type: q.contactKind ?? "email",
+          required: q.required !== false,
+        }));
       const validation = validateContact(
         payload.contact,
-        tenant.config.contactFields
+        contactFieldsFromQuestions
       );
       if (!validation.ok) {
         return NextResponse.json(

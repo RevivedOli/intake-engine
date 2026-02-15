@@ -4,6 +4,7 @@ import type { Question } from "@/types";
 import { QuestionSingle } from "./QuestionSingle";
 import { QuestionMulti } from "./QuestionMulti";
 import { QuestionText } from "./QuestionText";
+import { QuestionContact } from "./QuestionContact";
 import { Progress } from "./Progress";
 
 interface QuestionFlowProps {
@@ -15,7 +16,7 @@ interface QuestionFlowProps {
   onComplete: (answersSoFar?: Record<string, string | string[]>) => void;
   onBack: () => void;
   stepName: string;
-  /** Button label for text-type questions (default "OK") */
+  /** Button label for text-type and contact-type questions (default "OK" / "Next") */
   textQuestionButtonLabel?: string;
 }
 
@@ -99,6 +100,18 @@ export function QuestionFlow({
             onNext={goNext}
             required
             submitButtonLabel={question.submitButtonLabel ?? textQuestionButtonLabel}
+          />
+        )}
+        {question.type === "contact" && (
+          <QuestionContact
+            key={question.id}
+            question={question}
+            answers={answers}
+            value={(answers[question.id] as string) ?? ""}
+            onChange={(v) => setAnswer(question.id, v)}
+            onNext={goNext}
+            required={question.required !== false}
+            submitButtonLabel={question.submitButtonLabel ?? textQuestionButtonLabel ?? "Next"}
           />
         )}
       </div>

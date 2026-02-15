@@ -79,6 +79,8 @@ export function ContactCapture({
             src={imageUrl}
             alt=""
             className="w-full max-h-52 sm:max-h-64 object-contain"
+            loading="lazy"
+            decoding="async"
           />
         </div>
       )}

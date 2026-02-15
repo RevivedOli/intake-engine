@@ -1076,12 +1076,33 @@ function WebhookOptionFields({
         />
       </div>
       <div>
+        <label className={labelClass}>Header (optional)</label>
+        <input
+          type="text"
+          value={option.thankYouHeader ?? ""}
+          onChange={(e) => onUpdate({ ...option, thankYouHeader: e.target.value.trim() || undefined })}
+          className={inputClass}
+          placeholder="e.g. Thank you."
+        />
+      </div>
+      <div>
+        <label className={labelClass}>Sub-heading (optional)</label>
+        <input
+          type="text"
+          value={option.thankYouSubheading ?? ""}
+          onChange={(e) => onUpdate({ ...option, thankYouSubheading: e.target.value.trim() || undefined })}
+          className={inputClass}
+          placeholder="e.g. We'll be in touch soon."
+        />
+      </div>
+      <div>
         <label className={labelClass}>Thank you message (after sending)</label>
         <textarea
           value={option.thankYouMessage}
           onChange={(e) => onUpdate({ ...option, thankYouMessage: e.target.value })}
           className={inputClass}
           rows={2}
+          placeholder="Main body text shown below header and sub-heading"
         />
       </div>
       <div>

@@ -40,6 +40,8 @@ export function Hero({ config, onStart }: HeroProps) {
               src={config.logoUrl}
               alt=""
               className="max-h-16 sm:max-h-20 w-auto object-contain"
+              fetchPriority="high"
+              loading="eager"
             />
           </div>
         )}
@@ -49,6 +51,8 @@ export function Hero({ config, onStart }: HeroProps) {
               src={config.imageUrl}
               alt=""
               className="w-full max-h-52 sm:max-h-64 object-contain"
+              fetchPriority="high"
+              loading="eager"
             />
           </div>
         )}

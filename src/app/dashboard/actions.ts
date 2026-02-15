@@ -53,8 +53,7 @@ export async function createTenantAction(
     if (!config.theme) {
       config.theme = { primaryColor: "#4a6b5a", background: "#0d1f18", fontFamily: "var(--font-sans)", layout: "centered" };
     }
-    if (!config.steps?.length) config.steps = ["hero", "questions", "contact", "result"];
-    if (!config.contactFields?.length) config.contactFields = [{ id: "email", type: "email", label: "Email", required: true }];
+    if (!config.steps?.length) config.steps = ["hero", "questions", "result"];
     const id = await createTenant({ name: name.trim(), domain, config, questions });
     if (!id) return { error: "Failed to create tenant" };
     return { error: null, success: true, id };

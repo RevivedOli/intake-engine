@@ -288,20 +288,34 @@ function CtaMultiChoiceView({
   onSelectSubChoice?: (optionId: string, subChoiceIndex: number) => void;
 }) {
   const baseClass =
-    "min-h-screen p-6 sm:p-8 flex flex-col items-center justify-center animate-fade-in max-w-2xl mx-auto";
+    "min-h-screen p-6 sm:p-8 flex flex-col items-center justify-center animate-fade-in-up max-w-2xl mx-auto";
   const style = { fontFamily };
 
   if (ctaView) {
     if (ctaView.kind === "thank_you") {
       return (
-        <div className={`${baseClass} text-center`} style={style}>
-          <p className="text-xl text-white/95 max-w-md whitespace-pre-line">{ctaView.message}</p>
+        <div key={`cta-resolved-${ctaView.kind}`} className={`${baseClass} text-center`} style={style}>
+          {ctaView.header?.trim() && (
+            <h2 className="text-2xl font-bold text-white/95 mb-2 w-full">
+              {ctaView.header.trim()}
+            </h2>
+          )}
+          {ctaView.subheading?.trim() && (
+            <p className="text-lg text-white/80 mb-4 w-full">
+              {ctaView.subheading.trim()}
+            </p>
+          )}
+          {ctaView.message?.trim() && (
+            <p className="text-xl text-white/95 max-w-md whitespace-pre-line">
+              {ctaView.message.trim()}
+            </p>
+          )}
         </div>
       );
     }
     if (ctaView.kind === "link") {
       return (
-        <div className={`${baseClass} text-center`} style={style}>
+        <div key={`cta-resolved-${ctaView.kind}`} className={`${baseClass} text-center`} style={style}>
           <a
             href={ctaView.url}
             target={ctaView.openInNewTab ? "_blank" : "_self"}
@@ -316,7 +330,7 @@ function CtaMultiChoiceView({
     }
     if (ctaView.kind === "embed") {
       return (
-        <div className={baseClass} style={style}>
+        <div key={`cta-resolved-${ctaView.kind}`} className={baseClass} style={style}>
           {ctaView.title && (
             <h2 className="text-2xl font-bold text-white/95 text-center mb-1 w-full">
               {ctaView.title}
@@ -355,7 +369,7 @@ function CtaMultiChoiceView({
     }
     if (ctaView.kind === "discount") {
       return (
-        <div className={`${baseClass} text-center`} style={style}>
+        <div key={`cta-resolved-${ctaView.kind}`} className={`${baseClass} text-center`} style={style}>
           {ctaView.title && (
             <h2 className="text-2xl font-bold text-white/95 mb-2">{ctaView.title}</h2>
           )}
@@ -380,7 +394,7 @@ function CtaMultiChoiceView({
     if (ctaView.kind === "embed_video") {
       const btnBg = (ctaView.button?.color && /^#[0-9A-Fa-f]{3,6}$/.test(ctaView.button.color)) ? ctaView.button.color : primary;
       return (
-        <div className={baseClass} style={style}>
+        <div key={`cta-resolved-${ctaView.kind}`} className={baseClass} style={style}>
           {ctaView.title && (
             <h2 className="text-2xl font-bold text-white/95 text-center mb-1 w-full">
               {ctaView.title}
@@ -419,7 +433,7 @@ function CtaMultiChoiceView({
   // Sub-choice picker (parent set subChoiceOption when user picked embed_video sub_choice)
   if (subChoiceOption && "choices" in subChoiceOption) {
     return (
-      <div className={baseClass} style={style}>
+      <div key={`cta-sub-${subChoiceOption.id}`} className={baseClass} style={style}>
         {subChoiceOption.title?.trim() && <h2 className="text-white text-xl font-semibold text-center mb-2 w-full">{subChoiceOption.title}</h2>}
         {subChoiceOption.subheading?.trim() && <p className="text-white/80 text-center mb-4 w-full">{subChoiceOption.subheading}</p>}
         {subChoiceOption.imageUrl?.trim() && (
@@ -428,12 +442,16 @@ function CtaMultiChoiceView({
               src={subChoiceOption.imageUrl}
               alt=""
               className="w-full rounded-lg object-contain max-h-48"
+              loading="lazy"
+              decoding="async"
             />
           </div>
         )}
-        <p className="text-white/80 text-center mb-6 w-full">
-          {subChoiceOption.prompt ?? cta.prompt ?? "Choose one:"}
-        </p>
+        {(subChoiceOption.prompt ?? cta.prompt ?? "").trim() && (
+          <p className="text-white/80 text-center mb-6 w-full">
+            {(subChoiceOption.prompt ?? cta.prompt ?? "").trim()}
+          </p>
+        )}
         <div className="flex flex-col gap-3 w-full max-w-sm">
           {subChoiceOption.choices.map((choice, idx) => (
             <button
@@ -460,7 +478,7 @@ function CtaMultiChoiceView({
   };
 
   return (
-    <div className={baseClass} style={style}>
+    <div key="cta-main" className={baseClass} style={style}>
       {cta.title && <h2 className="text-white text-xl font-semibold text-center mb-2 w-full">{cta.title}</h2>}
       {cta.subheading && <p className="text-white/80 text-center mb-4 w-full">{cta.subheading}</p>}
       {cta.imageUrl && (
@@ -469,6 +487,8 @@ function CtaMultiChoiceView({
             src={cta.imageUrl}
             alt=""
             className="w-full rounded-lg object-contain max-h-48"
+            loading="lazy"
+            decoding="async"
           />
         </div>
       )}
