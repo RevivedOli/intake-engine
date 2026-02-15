@@ -67,7 +67,7 @@ export function QuestionFlow({
           label={progressLabel}
         />
       </div>
-      <div className="flex-1 flex flex-col justify-center">
+      <div className="flex-1 flex flex-col justify-start pt-4 sm:justify-center sm:pt-0">
         {question.type === "single" && (
           <QuestionSingle
             key={question.id}
