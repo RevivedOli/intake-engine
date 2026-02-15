@@ -49,6 +49,14 @@ export function QuestionText({
     onNext({ ...answers, [question.id]: value });
   };
 
+  /** On mobile, scroll focused textarea to bottom of viewport (just above keyboard) after keyboard opens */
+  const scrollInputAboveKeyboard = () => {
+    if (typeof window === "undefined" || window.innerWidth >= 640) return;
+    setTimeout(() => {
+      (document.activeElement as HTMLElement)?.scrollIntoView({ block: "end", behavior: "auto" });
+    }, 400);
+  };
+
   return (
     <div
       className="animate-fade-in-up max-w-xl mx-auto"
@@ -76,6 +84,7 @@ export function QuestionText({
               onChange(e.target.value);
               autoGrow();
             }}
+            onFocus={scrollInputAboveKeyboard}
             onBlur={() => setTouched(true)}
             placeholder="Type your answer here..."
             rows={1}

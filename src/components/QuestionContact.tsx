@@ -132,6 +132,14 @@ export function QuestionContact({
     onNext({ ...answers, [question.id]: value.trim() });
   };
 
+  /** On mobile, scroll focused input to bottom of viewport (just above keyboard) after keyboard opens */
+  const scrollInputAboveKeyboard = () => {
+    if (typeof window === "undefined" || window.innerWidth >= 640) return;
+    setTimeout(() => {
+      (document.activeElement as HTMLElement)?.scrollIntoView({ block: "end", behavior: "auto" });
+    }, 400);
+  };
+
   return (
     <div
       className="animate-fade-in-up max-w-xl mx-auto min-w-0 w-full px-6 sm:px-8"
@@ -183,9 +191,10 @@ export function QuestionContact({
                 autoComplete="tel-national"
                 value={telNational}
                 onChange={(e) => setTelValue(telCode, e.target.value)}
+                onFocus={scrollInputAboveKeyboard}
                 onBlur={() => setTouched(true)}
                 placeholder={placeholder}
-                className="flex-1 min-w-0 py-2.5 pl-2 pr-10 bg-transparent border-0 text-white/90 placeholder-white/40 focus:outline-none focus:ring-0"
+                className="flex-1 min-w-0 py-2.5 pl-2 pr-3 bg-transparent border-0 text-white/90 placeholder-white/40 focus:outline-none focus:ring-0"
                 aria-invalid={!!error}
                 aria-describedby={error ? `contact-${question.id}-error` : undefined}
               />
@@ -216,6 +225,7 @@ export function QuestionContact({
                 inputMode={kind === "email" ? "email" : "text"}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
+                onFocus={scrollInputAboveKeyboard}
                 onBlur={() => setTouched(true)}
                 placeholder={placeholder}
                 className="flex-1 min-w-0 py-2.5 px-0 bg-transparent border-0 text-white/90 placeholder-white/40 focus:outline-none focus:ring-0"
