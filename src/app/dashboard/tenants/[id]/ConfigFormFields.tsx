@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { AppConfig, FlowStep } from "@/types/config";
 import { ImageUrlField } from "@/components/ImageUrlField";
 
@@ -12,7 +12,6 @@ const hintClass = "text-xs text-zinc-500 mt-1";
 const FLOW_STEPS: { value: FlowStep; label: string }[] = [
   { value: "hero", label: "Hero (welcome)" },
   { value: "questions", label: "Questions" },
-  { value: "contact", label: "Contact" },
   { value: "result", label: "Result" },
 ];
 
@@ -42,7 +41,11 @@ function isValidHex(s: string): boolean {
 
 const FONT_OPTIONS: { value: string; label: string }[] = [
   { value: "var(--font-sans)", label: "System default" },
+  { value: "'Poppins', sans-serif", label: "Poppins" },
   { value: "Inter, system-ui, sans-serif", label: "Inter" },
+  { value: "'Source Sans 3', sans-serif", label: "Source Sans 3" },
+  { value: "'DM Sans', sans-serif", label: "DM Sans" },
+  { value: "'Lato', sans-serif", label: "Lato" },
   { value: "'Open Sans', sans-serif", label: "Open Sans" },
   { value: "Georgia, serif", label: "Georgia" },
   { value: "system-ui, sans-serif", label: "System UI" },
@@ -58,6 +61,19 @@ export function ConfigFormFields({
   onChange: (config: AppConfig) => void;
 }) {
   const [customFontMode, setCustomFontMode] = useState(false);
+  const [fontDropdownOpen, setFontDropdownOpen] = useState(false);
+  const fontDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!fontDropdownOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (fontDropdownRef.current && !fontDropdownRef.current.contains(e.target as Node)) {
+        setFontDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [fontDropdownOpen]);
 
   function updateTheme(
     patch: Partial<AppConfig["theme"]>
@@ -109,6 +125,33 @@ export function ConfigFormFields({
 
   return (
     <div className="space-y-8">
+      {/* Branding */}
+      <section className="space-y-4">
+        <h3 className="text-lg font-medium text-zinc-200">Branding</h3>
+        <div>
+          <label className={labelClass}>Site title (browser tab)</label>
+          <input
+            type="text"
+            value={config.siteTitle ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...config,
+                siteTitle: e.target.value.trim() === "" ? undefined : e.target.value,
+              })
+            }
+            className={inputClass}
+            placeholder="e.g. My Funnel (leave empty to use tenant name)"
+          />
+          <p className={hintClass}>Shown in the browser tab. Empty = use tenant name.</p>
+        </div>
+        <ImageUrlField
+          label="Favicon (optional)"
+          value={config.faviconUrl ?? ""}
+          onChange={(v) => onChange({ ...config, faviconUrl: v || undefined })}
+          placeholder="URL or pick from ImageKit"
+        />
+      </section>
+
       {/* Theme */}
       <section className="space-y-4">
         <h3 className="text-lg font-medium text-zinc-200">Theme</h3>
@@ -167,7 +210,7 @@ export function ConfigFormFields({
               Use the colour picker for solid colours, or enter an image URL.
             </p>
           </div>
-          <div>
+          <div ref={fontDropdownRef} className="relative">
             <label className={labelClass}>Font family</label>
             {(() => {
               const current = config.theme.fontFamily ?? "";
@@ -177,27 +220,57 @@ export function ConfigFormFields({
               );
               const selectValue =
                 customFontMode ? "__custom__" : (matchingPreset ? matchingPreset.value : "__custom__");
+              const displayLabel = FONT_OPTIONS.find((o) => o.value === selectValue)?.label ?? (current || "Custom…");
               return (
                 <>
-                  <select
-                    value={selectValue}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === "__custom__") {
-                        setCustomFontMode(true);
-                      } else {
-                        setCustomFontMode(false);
-                        updateTheme({ fontFamily: v });
-                      }
+                  <button
+                    type="button"
+                    onClick={() => setFontDropdownOpen((open) => !open)}
+                    className={`${inputClass} flex items-center justify-between text-left`}
+                    style={{
+                      fontFamily:
+                        selectValue === "__custom__"
+                          ? (current.trim() || "inherit")
+                          : selectValue,
                     }}
-                    className={inputClass}
+                    aria-haspopup="listbox"
+                    aria-expanded={fontDropdownOpen}
+                    aria-label="Font family"
                   >
-                    {FONT_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                    <span>{displayLabel}</span>
+                    <svg className="w-4 h-4 shrink-0 text-zinc-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden>
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  {fontDropdownOpen && (
+                    <ul
+                      className="mt-1 border border-zinc-600 rounded bg-zinc-800 shadow-lg max-h-64 overflow-y-auto z-10 absolute min-w-[200px]"
+                      role="listbox"
+                    >
+                      {FONT_OPTIONS.map((o) => (
+                        <li key={o.value} role="option" aria-selected={o.value === selectValue}>
+                          <button
+                            type="button"
+                            className={`w-full px-3 py-2 text-left text-sm hover:bg-zinc-700 focus:bg-zinc-700 focus:outline-none ${
+                              o.value === selectValue ? "bg-zinc-700 text-amber-400" : "text-zinc-200"
+                            }`}
+                            style={{ fontFamily: o.value === "__custom__" ? "inherit" : o.value }}
+                            onClick={() => {
+                              if (o.value === "__custom__") {
+                                setCustomFontMode(true);
+                              } else {
+                                setCustomFontMode(false);
+                                updateTheme({ fontFamily: o.value });
+                              }
+                              setFontDropdownOpen(false);
+                            }}
+                          >
+                            {o.label}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {(selectValue === "__custom__" || customFontMode) && (
                     <input
                       type="text"
@@ -362,7 +435,7 @@ export function ConfigFormFields({
             </li>
           ))}
         </ul>
-        {config.steps.length < 4 && (
+        {config.steps.length < 3 && (
           <button
             type="button"
             onClick={addStep}

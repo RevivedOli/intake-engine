@@ -1,7 +1,6 @@
 import type { AppTheme } from "./theme";
-import type { ContactField } from "./contact";
 
-export type FlowStep = "hero" | "questions" | "contact" | "result";
+export type FlowStep = "hero" | "questions" | "result";
 
 export interface HeroConfig {
   title?: string;
@@ -100,6 +99,10 @@ export interface CtaMultiChoiceOptionWebhook {
   kind: "webhook_then_message";
   webhookTag: string;
   thankYouMessage: string;
+  /** Optional header shown above the thank you message */
+  thankYouHeader?: string;
+  /** Optional sub-heading shown below header, above the message */
+  thankYouSubheading?: string;
   webhookUrl?: string;
 }
 
@@ -123,7 +126,7 @@ export type CtaConfig =
 
 /** Resolved view when showing one outcome of a multi-choice CTA (or direct CTA) */
 export type CtaResolvedView =
-  | { kind: "thank_you"; message: string }
+  | { kind: "thank_you"; message: string; header?: string; subheading?: string }
   | { kind: "link"; label: string; url: string; openInNewTab?: boolean }
   | { kind: "embed"; url: string; title?: string; subtitle?: string; textBelow?: string; button?: { label: string; url: string; color?: string } }
   | { kind: "discount"; title: string; description?: string; linkUrl: string; linkLabel?: string; code: string }
@@ -132,14 +135,13 @@ export type CtaResolvedView =
 export interface AppConfig {
   theme: AppTheme;
   steps: FlowStep[];
+  /** Optional browser tab title (fallback: tenant name) */
+  siteTitle?: string;
+  /** Optional favicon URL (image) */
+  faviconUrl?: string;
   hero?: HeroConfig;
-  contactFields: ContactField[];
-  /** Optional image shown above the contact form */
-  contactImageUrl?: string;
   /** Default thank-you message when n8n omits one (Mode A) */
   defaultThankYouMessage?: string;
-  /** Optional copy above contact form (e.g. "Enter your details to receive free training.") */
-  contactIntro?: string;
   /** Button label for text-type questions (e.g. "OK", "Next", "Submit"). Defaults to "OK". */
   textQuestionButtonLabel?: string;
   /** Post-submit CTA: what to show after lead submits (in-app; n8n is fire-and-forget) */

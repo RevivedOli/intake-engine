@@ -12,21 +12,36 @@ const WIDTH_OPTIONS = [
   { value: "100%", label: "Full" },
 ] as const;
 
+/** Minimal list for phone preview (country code picker) */
+const PREVIEW_COUNTRY_CODES = [
+  { code: "+44", label: "UK" },
+  { code: "+1", label: "US/CA" },
+  { code: "+61", label: "AU" },
+  { code: "+49", label: "DE" },
+  { code: "+33", label: "FR" },
+];
+
 function QuestionPreviewCard({
   question,
   primary,
   fontFamily,
   textButtonLabel,
+  previewContactValue,
+  onPreviewContactChange,
 }: {
   question: Question;
   primary: string;
   fontFamily: string;
   textButtonLabel: string;
+  previewContactValue?: string;
+  onPreviewContactChange?: (value: string) => void;
 }) {
   const options = question.options ?? [];
   const isSingle = question.type === "single";
   const isMulti = question.type === "multi";
   const isText = question.type === "text";
+  const isContact = question.type === "contact";
+  const contactHasInput = (previewContactValue ?? "").trim().length > 0;
 
   return (
     <div
@@ -96,6 +111,70 @@ function QuestionPreviewCard({
           </div>
         </div>
       )}
+      {isContact && (
+        <div className="mt-3 w-full">
+          {question.label?.trim() && (
+            <p className="text-white/70 text-xs mb-1">
+              {question.label}
+            </p>
+          )}
+          {question.contactKind === "tel" ? (
+            <div
+              className="flex items-center gap-2 border-b border-white/30 mt-2 pb-1"
+              style={{ fontFamily }}
+            >
+              <select
+                className="shrink-0 pl-0 pr-2 py-2 bg-transparent border-0 border-r border-white/20 text-white/80 text-xs focus:outline-none cursor-pointer"
+                style={{ fontFamily }}
+                defaultValue="+44"
+                aria-label="Country code (preview)"
+              >
+                {PREVIEW_COUNTRY_CODES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} {c.label}
+                  </option>
+                ))}
+              </select>
+              <div
+                className="flex-1 min-w-0 py-2 px-2 text-white/50 text-sm"
+                style={{ fontFamily }}
+              >
+                {question.placeholder || "Phone Number"}
+              </div>
+              <span
+                className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white"
+                style={{ backgroundColor: primary }}
+                aria-hidden
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </span>
+            </div>
+          ) : (
+            <div
+              className="flex items-center gap-2 border-b border-white/30 mt-2 pb-1"
+              style={{ fontFamily }}
+            >
+              <div
+                className="flex-1 min-w-0 py-2 px-0 text-white/50 text-sm"
+                style={{ fontFamily }}
+              >
+                {question.placeholder || (question.contactKind === "email" ? "you@example.com" : question.contactKind === "instagram" ? "@username" : "…")}
+              </div>
+              <span
+                className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white"
+                style={{ backgroundColor: primary }}
+                aria-hidden
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -119,7 +198,7 @@ export function QuestionsPreview({
   const safeIndex = count ? Math.max(0, Math.min(index, count - 1)) : 0;
   const current = count ? questions[safeIndex] : null;
   const textButtonLabel =
-    current?.type === "text"
+    current?.type === "text" || current?.type === "contact"
       ? (current.submitButtonLabel ?? (config.textQuestionButtonLabel?.trim() || "OK"))
       : "OK";
 

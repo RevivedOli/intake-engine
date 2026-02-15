@@ -35,11 +35,26 @@ export default async function HomePage() {
     return <NotConfigured />;
   }
 
+  const hero = tenant.config && typeof tenant.config === "object" && "hero" in tenant.config
+    ? (tenant.config as { hero?: { imageUrl?: string; logoUrl?: string } }).hero
+    : undefined;
+  const heroImageUrl = hero?.imageUrl?.trim();
+  const logoUrl = hero?.logoUrl?.trim();
+
   return (
-    <Funnel
-      appId={tenant.id}
-      config={tenant.config}
-      questions={tenant.questions}
-    />
+    <>
+      {heroImageUrl && (
+        <link rel="preload" as="image" href={heroImageUrl} />
+      )}
+      {logoUrl && (
+        <link rel="preload" as="image" href={logoUrl} />
+      )}
+      <Funnel
+        appId={tenant.id}
+        config={tenant.config}
+        questions={tenant.questions}
+        tenantName={tenant.name}
+      />
+    </>
   );
 }

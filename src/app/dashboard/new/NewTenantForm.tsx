@@ -9,7 +9,6 @@ import type { Question } from "@/types/question";
 import { normalizeConfig } from "../tenants/[id]/defaults";
 import { ConfigFormFields } from "../tenants/[id]/ConfigFormFields";
 import { ConfigPreview } from "../tenants/[id]/ConfigPreview";
-import { ContactFormFields } from "../tenants/[id]/ContactFormFields";
 import { QuestionsPreview } from "../tenants/[id]/QuestionsPreview";
 import { QuestionsFormFields } from "../tenants/[id]/QuestionsFormFields";
 import { CTAFormFields } from "../tenants/[id]/CTAFormFields";
@@ -28,17 +27,7 @@ const INITIAL_CONFIG = normalizeConfig({
     ctaLabel: "Get started",
     buttonLabel: "Start",
   },
-  contactIntro: "Enter your details below.",
   defaultThankYouMessage: "Thank you. We'll be in touch.",
-  contactFields: [
-    {
-      id: "email",
-      type: "email",
-      label: "Email address",
-      required: true,
-      placeholder: "you@example.com",
-    },
-  ],
 });
 
 const INITIAL_QUESTIONS: Question[] = [
@@ -55,7 +44,7 @@ export function NewTenantForm() {
   const [error, setError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"config" | "contact" | "questions" | "cta">("config");
+  const [activeTab, setActiveTab] = useState<"config" | "questions" | "cta">("config");
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
   const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
 
@@ -88,17 +77,6 @@ export function NewTenantForm() {
     }
     if (config.steps.length === 0) {
       setError("Add at least one step to the flow.");
-      return;
-    }
-    if (config.contactFields.length === 0) {
-      setError("Add at least one contact field.");
-      return;
-    }
-    const emptyContact = config.contactFields.find(
-      (f) => !f.label?.trim() || !f.id?.trim()
-    );
-    if (emptyContact) {
-      setError("Each contact field needs an id and label.");
       return;
     }
     const emptyQuestion = questions.find((q) => !q.question?.trim());
@@ -207,17 +185,6 @@ export function NewTenantForm() {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab("contact")}
-                className={`px-4 py-2 text-sm font-medium rounded-t -mb-px ${
-                  activeTab === "contact"
-                    ? "bg-zinc-700 text-white border border-zinc-600 border-b-0"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                Contact
-              </button>
-              <button
-                type="button"
                 onClick={() => setActiveTab("questions")}
                 className={`px-4 py-2 text-sm font-medium rounded-t -mb-px ${
                   activeTab === "questions"
@@ -242,9 +209,6 @@ export function NewTenantForm() {
 
             {activeTab === "config" && (
               <ConfigFormFields config={config} onChange={setConfig} />
-            )}
-            {activeTab === "contact" && (
-              <ContactFormFields config={config} onChange={setConfig} />
             )}
             {activeTab === "questions" && (
               <QuestionsFormFields questions={questions} onChange={setQuestions} />
@@ -271,13 +235,6 @@ export function NewTenantForm() {
           </div>
         </form>
         {activeTab === "config" && (
-          <div className="xl:w-[360px] xl:shrink-0">
-            <div className="xl:sticky xl:top-4">
-              <ConfigPreview config={config} />
-            </div>
-          </div>
-        )}
-        {activeTab === "contact" && (
           <div className="xl:w-[360px] xl:shrink-0">
             <div className="xl:sticky xl:top-4">
               <ConfigPreview config={config} />

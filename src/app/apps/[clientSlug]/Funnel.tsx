@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { Hero } from "@/components/Hero";
 import { QuestionFlow } from "@/components/QuestionFlow";
-import { ContactCapture } from "@/components/ContactCapture";
 import { ResultScreen } from "@/components/ResultScreen";
 import type { AppConfig, FlowStep, IntakeResult } from "@/types";
 import type {
@@ -14,6 +13,7 @@ import type {
   CtaMultiChoiceOptionVideoSubChoice,
   CtaResolvedView,
 } from "@/types/config";
+import { contactKindToPayloadKey } from "@/lib/contact-payload";
 
 const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"] as const;
 
@@ -30,9 +30,42 @@ interface FunnelProps {
   appId: string;
   config: AppConfig;
   questions: import("@/types").Question[];
+  /** Fallback for document title when config.siteTitle is not set */
+  tenantName?: string | null;
 }
 
 const SESSION_KEY_PREFIX = "intake_session_";
+
+/** Contact object keyed by canonical names (instagram, phone, email, text) for consistent webhook payload. */
+function deriveContactFromAnswers(
+  questions: import("@/types").Question[],
+  answers: Record<string, string | string[]>
+): Record<string, string> {
+  const contact: Record<string, string> = {};
+  questions.forEach((q) => {
+    if (q.type === "contact") {
+      const kind = q.contactKind ?? "email";
+      const key = contactKindToPayloadKey(kind);
+      const v = answers[q.id];
+      const value = typeof v === "string" ? v.trim() : Array.isArray(v) ? v.join(" ").trim() : "";
+      contact[key] = value;
+    }
+  });
+  return contact;
+}
+
+/** Answers with contact question ids removed so payload.answers only has Q1, Q2, Q3 style. */
+function answersWithoutContact(
+  questions: import("@/types").Question[],
+  answers: Record<string, string | string[]>
+): Record<string, string | string[]> {
+  const contactIds = new Set(questions.filter((q) => q.type === "contact").map((q) => q.id));
+  const out: Record<string, string | string[]> = {};
+  for (const [id, value] of Object.entries(answers)) {
+    if (!contactIds.has(id)) out[id] = value;
+  }
+  return out;
+}
 
 function getOrCreateSessionId(appId: string): string {
   if (typeof window === "undefined") return "";
@@ -45,20 +78,66 @@ function getOrCreateSessionId(appId: string): string {
   return id;
 }
 
-export function Funnel({ appId, config, questions }: FunnelProps) {
+export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const title = config.siteTitle?.trim() || tenantName?.trim() || "Intake";
+    document.title = title;
+  }, [config.siteTitle, tenantName]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const url = config.faviconUrl?.trim();
+    if (url) {
+      let link = document.querySelector<HTMLLinkElement>('link[rel="icon"][data-intake-dynamic]');
+      if (!link) {
+        link = document.createElement("link");
+        link.rel = "icon";
+        link.setAttribute("data-intake-dynamic", "true");
+        document.head.appendChild(link);
+      }
+      link.href = url;
+    } else {
+      const link = document.querySelector<HTMLLinkElement>('link[rel="icon"][data-intake-dynamic]');
+      if (link) link.remove();
+    }
+  }, [config.faviconUrl]);
+
   const [step, setStep] = useState<FlowStep | "result">(
     config.steps[0] ?? "hero"
   );
   const [stepIndex, setStepIndex] = useState(0);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
-  const [contact, setContact] = useState<Record<string, string>>({});
+  const derivedContact = useMemo(
+    () => deriveContactFromAnswers(questions, answers),
+    [questions, answers]
+  );
   const [result, setResult] = useState<IntakeResult | null>(null);
   const [ctaView, setCtaView] = useState<CtaResolvedView | null>(null);
   const [subChoiceOption, setSubChoiceOption] = useState<CtaMultiChoiceOptionVideoSubChoice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || step !== "questions") return;
+    const cta = config.cta;
+    const url = cta?.type === "multi_choice" && cta.imageUrl?.trim() ? cta.imageUrl.trim() : null;
+    if (!url) return;
+    let link = document.querySelector<HTMLLinkElement>('link[rel="preload"][data-intake-cta-image]');
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.setAttribute("data-intake-cta-image", "true");
+      document.head.appendChild(link);
+    }
+    link.href = url;
+    return () => {
+      link?.remove();
+    };
+  }, [step, config.cta]);
 
   const utm = useMemo(
     () => (searchParams ? utmFromSearchParams(searchParams) : {}),
@@ -83,22 +162,22 @@ export function Funnel({ appId, config, questions }: FunnelProps) {
       step: overrides.step,
       question_index: overrides.question_index,
       question_id: overrides.question_id,
-      answers: overrides.answers ?? answers,
-      contact: overrides.contact ?? contact,
+      answers: answersWithoutContact(questions, overrides.answers ?? answers),
+      contact: overrides.contact ?? derivedContact,
       utm,
     }),
-    [appId, answers, contact, utm]
+    [appId, answers, derivedContact, utm, questions]
   );
 
   const sendProgress = useCallback(
     async (
       stepName: string,
       answersSoFar: Record<string, string | string[]>,
-      contactSoFar: Record<string, string>,
       questionIndex?: number,
       questionId?: string
     ) => {
       try {
+        const contactSoFar = deriveContactFromAnswers(questions, answersSoFar);
         await fetch("/api/intake", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -116,13 +195,13 @@ export function Funnel({ appId, config, questions }: FunnelProps) {
         // non-blocking
       }
     },
-    [buildPayload]
+    [buildPayload, questions]
   );
 
   const moveToStep = useCallback(
-    (nextStep: FlowStep, nextIndex: number, answersSoFar: Record<string, string | string[]>, contactSoFar: Record<string, string>) => {
+    (nextStep: FlowStep, nextIndex: number, answersSoFar: Record<string, string | string[]>) => {
       const prevStep = config.steps[stepIndex];
-      if (prevStep) sendProgress(prevStep, answersSoFar, contactSoFar);
+      if (prevStep) sendProgress(prevStep, answersSoFar);
       setStep(nextStep);
       setStepIndex(nextIndex);
     },
@@ -133,14 +212,10 @@ export function Funnel({ appId, config, questions }: FunnelProps) {
     const idx = config.steps.indexOf("questions");
     if (idx >= 0) {
       setQuestionIndex(0);
-      moveToStep("questions", idx, answers, contact);
-      // Report they reached first question (last step = question 0)
-      sendProgress("questions", answers, contact, 0, questions[0]?.id);
-    } else {
-      const contactIdx = config.steps.indexOf("contact");
-      if (contactIdx >= 0) moveToStep("contact", contactIdx, answers, contact);
+      moveToStep("questions", idx, answers);
+      sendProgress("questions", answers, 0, questions[0]?.id);
     }
-  }, [config.steps, answers, contact, moveToStep, sendProgress, questions]);
+  }, [config.steps, answers, moveToStep, sendProgress, questions]);
 
   const handleQuestionsBack = useCallback(() => {
     if (questionIndex > 0) {
@@ -155,39 +230,37 @@ export function Funnel({ appId, config, questions }: FunnelProps) {
   }, [config.steps, questionIndex]);
 
   const handleQuestionsComplete = useCallback(
-    (answersSoFar?: Record<string, string | string[]>) => {
+    async (answersSoFar?: Record<string, string | string[]>) => {
       const a = answersSoFar ?? answers;
-      const contactIdx = config.steps.indexOf("contact");
-      if (contactIdx >= 0) {
-        moveToStep("contact", contactIdx, a, contact);
+      setAnswers(a);
+      setError(null);
+      setSubmitting(true);
+      try {
+        const contactPayload = deriveContactFromAnswers(questions, a);
+        const res = await fetch("/api/intake", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            buildPayload("submit", { answers: a, contact: contactPayload })
+          ),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.message ?? "Something went wrong. Please try again.");
+          setSubmitting(false);
+          return;
+        }
+        setCtaView(null);
+        setSubChoiceOption(null);
+        setStep("result");
+      } catch {
+        setError("Something went wrong. Please try again.");
+      } finally {
+        setSubmitting(false);
       }
     },
-    [config.steps, answers, contact, moveToStep]
+    [config.steps, answers, questions, buildPayload]
   );
-
-  const handleContactSubmit = useCallback(async () => {
-    setError(null);
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload("submit")),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.message ?? "Something went wrong. Please try again.");
-        return;
-      }
-      setCtaView(null);
-      setSubChoiceOption(null);
-      setStep("result");
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  }, [buildPayload]);
 
   const resolveCtaViewFromOption = useCallback((option: CtaMultiChoiceOption): CtaResolvedView | null => {
     if (option.kind === "embed_video") {
@@ -251,7 +324,12 @@ export function Funnel({ appId, config, questions }: FunnelProps) {
         } catch {
           // still show thank you
         }
-        setCtaView({ kind: "thank_you", message: option.thankYouMessage });
+        setCtaView({
+          kind: "thank_you",
+          message: option.thankYouMessage,
+          header: option.thankYouHeader?.trim() || undefined,
+          subheading: option.thankYouSubheading?.trim() || undefined,
+        });
         setSubChoiceOption(null);
       }
     },
@@ -292,15 +370,20 @@ export function Funnel({ appId, config, questions }: FunnelProps) {
         )}
 
         {step === "questions" && questions.length > 0 && (
-          <QuestionFlow
+          <>
+            {error && (
+              <p className="text-center text-amber-400 text-sm mt-4 px-6">
+                {error}
+              </p>
+            )}
+            <QuestionFlow
             questions={questions}
             answers={answers}
             currentIndex={questionIndex}
             onAnswersChange={setAnswers}
             onStepChange={(idx, answersSoFar) => {
-              // Only report progress when moving forward (not on Back) for drop-off analytics
               if (idx > questionIndex) {
-                sendProgress("questions", answersSoFar ?? answers, contact, idx, questions[idx]?.id);
+                sendProgress("questions", answersSoFar ?? answers, idx, questions[idx]?.id);
               }
               setQuestionIndex(idx);
             }}
@@ -309,25 +392,6 @@ export function Funnel({ appId, config, questions }: FunnelProps) {
             stepName="questions"
             textQuestionButtonLabel={config.textQuestionButtonLabel}
           />
-        )}
-
-        {step === "contact" && (
-          <>
-            {error && (
-              <p className="text-center text-amber-400 text-sm mt-4 px-6">
-                {error}
-              </p>
-            )}
-            <ContactCapture
-              fields={config.contactFields}
-              contact={contact}
-              onContactChange={setContact}
-              onSubmit={handleContactSubmit}
-              imageUrl={config.contactImageUrl}
-              introText={config.contactIntro}
-              submitLabel={submitting ? "Submitting…" : "Submit"}
-              submitting={submitting}
-            />
           </>
         )}
 

@@ -15,7 +15,6 @@ import type { Question } from "@/types/question";
 import { normalizeConfig, normalizeQuestions } from "./defaults";
 import { ConfigFormFields } from "./ConfigFormFields";
 import { ConfigPreview } from "./ConfigPreview";
-import { ContactFormFields } from "./ContactFormFields";
 import { QuestionsPreview } from "./QuestionsPreview";
 import { QuestionsFormFields } from "./QuestionsFormFields";
 import { CTAFormFields } from "./CTAFormFields";
@@ -77,7 +76,7 @@ export function EditTenantForm({
     [tenant.questions]
   );
 
-  const [activeTab, setActiveTab] = useState<"config" | "contact" | "questions" | "cta">("config");
+  const [activeTab, setActiveTab] = useState<"config" | "questions" | "cta">("config");
   const [config, setConfig] = useState<AppConfig>(initialConfig);
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
 
@@ -88,17 +87,6 @@ export function EditTenantForm({
 
     if (config.steps.length === 0) {
       setSubmitState({ error: "Add at least one step to the flow." });
-      return;
-    }
-    if (config.contactFields.length === 0) {
-      setSubmitState({ error: "Add at least one contact field." });
-      return;
-    }
-    const emptyContact = config.contactFields.find(
-      (f) => !f.label?.trim() || !f.id?.trim()
-    );
-    if (emptyContact) {
-      setSubmitState({ error: "Each contact field needs an id and label." });
       return;
     }
     const emptyQuestion = questions.find((q) => !q.question?.trim());
@@ -300,17 +288,6 @@ export function EditTenantForm({
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab("contact")}
-                className={`px-4 py-2 text-sm font-medium rounded-t -mb-px ${
-                  activeTab === "contact"
-                    ? "bg-zinc-700 text-white border border-zinc-600 border-b-0"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                Contact
-              </button>
-              <button
-                type="button"
                 onClick={() => setActiveTab("questions")}
                 className={`px-4 py-2 text-sm font-medium rounded-t -mb-px ${
                   activeTab === "questions"
@@ -335,9 +312,6 @@ export function EditTenantForm({
 
             {activeTab === "config" && (
               <ConfigFormFields config={config} onChange={setConfig} />
-            )}
-            {activeTab === "contact" && (
-              <ContactFormFields config={config} onChange={setConfig} />
             )}
             {activeTab === "questions" && (
               <QuestionsFormFields questions={questions} onChange={setQuestions} />
@@ -364,13 +338,6 @@ export function EditTenantForm({
           </div>
         </form>
         {activeTab === "config" && (
-          <div className="xl:w-[360px] xl:shrink-0">
-            <div className="xl:sticky xl:top-4">
-              <ConfigPreview config={config} />
-            </div>
-          </div>
-        )}
-        {activeTab === "contact" && (
           <div className="xl:w-[360px] xl:shrink-0">
             <div className="xl:sticky xl:top-4">
               <ConfigPreview config={config} />

@@ -8,7 +8,6 @@ import type {
   CtaMultiChoiceOptionVideoSubChoice,
   CtaMultiChoiceOptionWebhook,
 } from "@/types/config";
-import type { ContactField } from "@/types/contact";
 import type { Question } from "@/types/question";
 
 const DEFAULT_THEME = {
@@ -18,11 +17,7 @@ const DEFAULT_THEME = {
   layout: "centered" as const,
 };
 
-const DEFAULT_STEPS = ["hero", "questions", "contact", "result"] as const;
-
-const DEFAULT_CONTACT_FIELDS: ContactField[] = [
-  { id: "email", type: "email", label: "Email", required: true },
-];
+const DEFAULT_STEPS = ["hero", "questions", "result"] as const;
 
 const DEFAULT_CTA: CtaConfig = { type: "thank_you", message: "Thank you." };
 
@@ -100,6 +95,8 @@ function normalizeCtaOption(raw: unknown, index: number): CtaMultiChoiceOption |
     kind: "webhook_then_message",
     webhookTag: typeof o.webhookTag === "string" ? o.webhookTag : "signup",
     thankYouMessage: typeof o.thankYouMessage === "string" ? o.thankYouMessage : "Thank you. We'll be in touch.",
+    thankYouHeader: typeof o.thankYouHeader === "string" ? o.thankYouHeader : undefined,
+    thankYouSubheading: typeof o.thankYouSubheading === "string" ? o.thankYouSubheading : undefined,
     webhookUrl: typeof o.webhookUrl === "string" ? o.webhookUrl : undefined,
   } satisfies CtaMultiChoiceOptionWebhook;
 }
@@ -149,17 +146,6 @@ export function normalizeConfig(raw: unknown): AppConfig {
   const theme = (c.theme && typeof c.theme === "object" ? c.theme : {}) as Record<string, unknown>;
   const hero = (c.hero && typeof c.hero === "object" ? c.hero : undefined) as Record<string, unknown> | undefined;
   const steps = Array.isArray(c.steps) ? c.steps.filter((s): s is AppConfig["steps"][number] => DEFAULT_STEPS.includes(s as never)) : [...DEFAULT_STEPS];
-  const contactFields = Array.isArray(c.contactFields) ? c.contactFields.map((f: unknown) => {
-    const x = f && typeof f === "object" ? (f as Record<string, unknown>) : {};
-    return {
-      id: typeof x.id === "string" ? x.id : "email",
-      type: (x.type === "email" || x.type === "tel" || x.type === "text" || x.type === "instagram" ? x.type : "email") as "email" | "tel" | "text" | "instagram",
-      label: typeof x.label === "string" ? x.label : "Email",
-      required: Boolean(x.required),
-      placeholder: typeof x.placeholder === "string" ? x.placeholder : undefined,
-    };
-  }) : [...DEFAULT_CONTACT_FIELDS];
-  if (contactFields.length === 0) contactFields.push(...DEFAULT_CONTACT_FIELDS);
 
   return {
     theme: {
@@ -169,6 +155,8 @@ export function normalizeConfig(raw: unknown): AppConfig {
       layout: (theme.layout === "left" || theme.layout === "full-width" ? theme.layout : "centered") as AppConfig["theme"]["layout"],
     },
     steps: steps.length ? steps : [...DEFAULT_STEPS],
+    siteTitle: typeof c.siteTitle === "string" ? c.siteTitle : undefined,
+    faviconUrl: typeof c.faviconUrl === "string" ? c.faviconUrl : undefined,
     hero: hero
       ? {
           title: typeof hero.title === "string" ? hero.title : "",
@@ -180,9 +168,6 @@ export function normalizeConfig(raw: unknown): AppConfig {
           footerText: typeof hero.footerText === "string" ? hero.footerText : undefined,
         }
       : undefined,
-    contactFields,
-    contactIntro: typeof c.contactIntro === "string" ? c.contactIntro : undefined,
-    contactImageUrl: typeof c.contactImageUrl === "string" ? c.contactImageUrl : undefined,
     defaultThankYouMessage: typeof c.defaultThankYouMessage === "string" ? c.defaultThankYouMessage : undefined,
     textQuestionButtonLabel: typeof c.textQuestionButtonLabel === "string" ? c.textQuestionButtonLabel : undefined,
     cta: c.cta !== undefined && c.cta !== null ? normalizeCta(c.cta) : DEFAULT_CTA,
@@ -194,18 +179,23 @@ export function normalizeQuestions(raw: unknown): Question[] {
   return raw.map((q: unknown, i: number) => {
     const x = q && typeof q === "object" ? (q as Record<string, unknown>) : {};
     const id = typeof x.id === "string" ? x.id : `q${i + 1}`;
-    const type = (x.type === "single" || x.type === "multi" || x.type === "text" ? x.type : "single") as Question["type"];
+    const type = (x.type === "single" || x.type === "multi" || x.type === "text" || x.type === "contact" ? x.type : "single") as Question["type"];
     const question = typeof x.question === "string" ? x.question : "";
     const options = Array.isArray(x.options) ? x.options.filter((o): o is string => typeof o === "string") : [];
     const imageUrl = typeof x.imageUrl === "string" ? x.imageUrl : undefined;
     const submitButtonLabel = type === "text" && typeof x.submitButtonLabel === "string" ? x.submitButtonLabel : undefined;
+    const contactKind = (x.contactKind === "email" || x.contactKind === "tel" || x.contactKind === "instagram" || x.contactKind === "text" ? x.contactKind : undefined) as Question["contactKind"];
+    const label = typeof x.label === "string" ? x.label : undefined;
+    const placeholder = typeof x.placeholder === "string" ? x.placeholder : undefined;
+    const required = type === "contact" ? (x.required !== undefined ? Boolean(x.required) : true) : undefined;
     return {
       id,
       type,
       question,
-      ...(options.length || type !== "text" ? { options } : {}),
+      ...((type === "single" || type === "multi") ? { options } : {}),
       ...(imageUrl ? { imageUrl } : {}),
       ...(submitButtonLabel ? { submitButtonLabel } : {}),
+      ...(type === "contact" ? { contactKind: contactKind ?? "email", label, placeholder, required } : {}),
     };
   });
 }

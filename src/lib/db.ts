@@ -14,6 +14,7 @@ export interface TenantRow {
 
 export interface TenantByDomain {
   id: string;
+  name: string | null;
   config: AppConfig;
   questions: Question[];
 }
@@ -32,7 +33,7 @@ export async function getTenantByDomain(domain: string): Promise<TenantByDomain 
   if (!sql) return null;
   const neonStart = Date.now();
   const rows = await sql`
-    SELECT t.id, t.config, t.questions
+    SELECT t.id, t.name, t.config, t.questions
     FROM tenants t
     INNER JOIN domains d ON d.tenant_id = t.id
     WHERE d.domain = ${domain}
@@ -43,6 +44,7 @@ export async function getTenantByDomain(domain: string): Promise<TenantByDomain 
   if (!row || row.id == null) return null;
   return {
     id: String(row.id),
+    name: row.name != null ? String(row.name) : null,
     config: row.config as AppConfig,
     questions: Array.isArray(row.questions) ? (row.questions as Question[]) : [],
   };
