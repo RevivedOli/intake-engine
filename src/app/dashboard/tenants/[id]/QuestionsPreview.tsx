@@ -120,11 +120,11 @@ function QuestionPreviewCard({
           )}
           {question.contactKind === "tel" ? (
             <div
-              className="flex items-center gap-2 border-b border-white/30 mt-2 pb-1"
+              className="flex items-center gap-2 border-b border-white/30 mt-2 pb-1 min-w-0 w-full"
               style={{ fontFamily }}
             >
               <select
-                className="shrink-0 pl-0 pr-2 py-2 bg-transparent border-0 border-r border-white/20 text-white/80 text-xs focus:outline-none cursor-pointer"
+                className="shrink-0 min-w-0 max-w-[5rem] pl-0 pr-2 py-2 bg-transparent border-0 border-r border-white/20 text-white/80 text-xs focus:outline-none cursor-pointer"
                 style={{ fontFamily }}
                 defaultValue="+44"
                 aria-label="Country code (preview)"
