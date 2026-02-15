@@ -40,8 +40,16 @@ export async function forwardToN8nWithUrl(
     throw new Error(`n8n returned ${res.status}`);
   }
 
-  const data = (await res.json()) as IntakeResponseEnvelope;
-  return data;
+  const text = await res.text();
+  if (!text.trim()) {
+    return { status: "ok" };
+  }
+  try {
+    const data = JSON.parse(text) as IntakeResponseEnvelope;
+    return data;
+  } catch {
+    return { status: "ok" };
+  }
 }
 
 /** Normalise n8n response to client result (thank_you | link | embed | job_id). */

@@ -134,7 +134,7 @@ export function QuestionContact({
 
   return (
     <div
-      className="animate-fade-in-up max-w-xl mx-auto"
+      className="animate-fade-in-up max-w-xl mx-auto min-w-0 w-full px-6 sm:px-8"
       style={{ fontFamily }}
     >
       <form onSubmit={handleSubmit}>
@@ -159,7 +159,7 @@ export function QuestionContact({
           )}
           {kind === "tel" ? (
             <div
-              className="flex items-center gap-2 border-b border-white/30 focus-within:border-white/60 transition-colors pb-1"
+              className="flex items-center gap-2 border-b border-white/30 focus-within:border-white/60 transition-colors pb-1 min-w-0 w-full"
               role="group"
               aria-label="Phone number with country code"
             >
@@ -167,7 +167,7 @@ export function QuestionContact({
                 id={`contact-${question.id}-cc`}
                 value={telCode}
                 onChange={(e) => setTelValue(e.target.value, telNational)}
-                className="shrink-0 pl-0 pr-3 py-2.5 bg-transparent border-0 border-r border-white/20 text-white/90 focus:outline-none focus:ring-0 cursor-pointer"
+                className="shrink-0 min-w-0 max-w-[5.5rem] pl-0 pr-2 sm:pr-3 py-2.5 bg-transparent border-0 border-r border-white/20 text-white/90 focus:outline-none focus:ring-0 cursor-pointer text-sm sm:text-base"
                 aria-label="Country code"
               >
                 {COUNTRY_CODES.map((c) => (
@@ -185,7 +185,7 @@ export function QuestionContact({
                 onChange={(e) => setTelValue(telCode, e.target.value)}
                 onBlur={() => setTouched(true)}
                 placeholder={placeholder}
-                className="flex-1 min-w-0 py-2.5 px-3 bg-transparent border-0 text-white/90 placeholder-white/40 focus:outline-none focus:ring-0"
+                className="flex-1 min-w-0 py-2.5 pl-2 pr-10 bg-transparent border-0 text-white/90 placeholder-white/40 focus:outline-none focus:ring-0"
                 aria-invalid={!!error}
                 aria-describedby={error ? `contact-${question.id}-error` : undefined}
               />
