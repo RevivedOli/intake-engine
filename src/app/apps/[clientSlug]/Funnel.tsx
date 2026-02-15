@@ -13,6 +13,7 @@ import type {
   CtaMultiChoiceOptionVideoSubChoice,
   CtaResolvedView,
 } from "@/types/config";
+import { contactKindToPayloadKey } from "@/lib/contact-payload";
 
 const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"] as const;
 
@@ -35,6 +36,7 @@ interface FunnelProps {
 
 const SESSION_KEY_PREFIX = "intake_session_";
 
+/** Contact object keyed by canonical names (instagram, phone, email, text) for consistent webhook payload. */
 function deriveContactFromAnswers(
   questions: import("@/types").Question[],
   answers: Record<string, string | string[]>
@@ -42,11 +44,27 @@ function deriveContactFromAnswers(
   const contact: Record<string, string> = {};
   questions.forEach((q) => {
     if (q.type === "contact") {
+      const kind = q.contactKind ?? "email";
+      const key = contactKindToPayloadKey(kind);
       const v = answers[q.id];
-      contact[q.id] = typeof v === "string" ? v.trim() : Array.isArray(v) ? v.join(" ").trim() : "";
+      const value = typeof v === "string" ? v.trim() : Array.isArray(v) ? v.join(" ").trim() : "";
+      contact[key] = value;
     }
   });
   return contact;
+}
+
+/** Answers with contact question ids removed so payload.answers only has Q1, Q2, Q3 style. */
+function answersWithoutContact(
+  questions: import("@/types").Question[],
+  answers: Record<string, string | string[]>
+): Record<string, string | string[]> {
+  const contactIds = new Set(questions.filter((q) => q.type === "contact").map((q) => q.id));
+  const out: Record<string, string | string[]> = {};
+  for (const [id, value] of Object.entries(answers)) {
+    if (!contactIds.has(id)) out[id] = value;
+  }
+  return out;
 }
 
 function getOrCreateSessionId(appId: string): string {
@@ -144,11 +162,11 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
       step: overrides.step,
       question_index: overrides.question_index,
       question_id: overrides.question_id,
-      answers: overrides.answers ?? answers,
+      answers: answersWithoutContact(questions, overrides.answers ?? answers),
       contact: overrides.contact ?? derivedContact,
       utm,
     }),
-    [appId, answers, derivedContact, utm]
+    [appId, answers, derivedContact, utm, questions]
   );
 
   const sendProgress = useCallback(

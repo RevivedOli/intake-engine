@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantById } from "@/lib/db";
 import { forwardToN8n, forwardToN8nWithUrl, getWebhookUrl } from "@/api/n8n";
+import { contactKindToPayloadKey } from "@/lib/contact-payload";
 import type { IntakeRequest, Question } from "@/types";
 
 function parseBody(body: unknown): IntakeRequest | null {
@@ -38,13 +39,14 @@ function parseCtaAction(body: unknown): { cta_tag: string; cta_webhook_url?: str
 
 function validateContact(
   contact: Record<string, string>,
-  contactFields: { id: string; type: string; required?: boolean }[]
+  contactFields: { type: string; required?: boolean }[]
 ): { ok: true } | { ok: false; message: string } {
   for (const field of contactFields) {
-    const value = contact[field.id] ?? "";
+    const key = contactKindToPayloadKey(field.type as "email" | "tel" | "instagram" | "text");
+    const value = contact[key] ?? "";
     const trimmed = String(value).trim();
     if (field.required && !trimmed) {
-      return { ok: false, message: `Missing required field: ${field.id}` };
+      return { ok: false, message: `Missing required field: ${key}` };
     }
     if (trimmed && field.type === "email") {
       const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -91,7 +93,6 @@ export async function POST(request: NextRequest) {
       const contactFieldsFromQuestions = (tenant.questions ?? [])
         .filter((q: Question) => q.type === "contact")
         .map((q: Question) => ({
-          id: q.id,
           type: q.contactKind ?? "email",
           required: q.required !== false,
         }));
