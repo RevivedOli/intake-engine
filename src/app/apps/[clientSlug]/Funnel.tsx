@@ -139,6 +139,32 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
     };
   }, [step, config.cta]);
 
+  // When on the before-last question, preload all CTA images (main + sub-choice) so they're ready on result
+  useEffect(() => {
+    if (typeof document === "undefined" || step !== "questions") return;
+    if (questions.length < 2 || questionIndex !== questions.length - 2) return;
+    const cta = config.cta;
+    if (cta?.type !== "multi_choice") return;
+    const urls: string[] = [];
+    if (cta.imageUrl?.trim()) urls.push(cta.imageUrl.trim());
+    (cta.options ?? []).forEach((opt: CtaMultiChoiceOption) => {
+      if (opt.kind === "embed_video" && opt.variant === "sub_choice" && opt.imageUrl?.trim()) {
+        urls.push(opt.imageUrl.trim());
+      }
+    });
+    const links: HTMLLinkElement[] = [];
+    urls.forEach((href) => {
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = href;
+      link.setAttribute("data-intake-cta-preload-all", "true");
+      document.head.appendChild(link);
+      links.push(link);
+    });
+    return () => links.forEach((l) => l.remove());
+  }, [step, questionIndex, questions.length, config.cta]);
+
   const utm = useMemo(
     () => (searchParams ? utmFromSearchParams(searchParams) : {}),
     [searchParams]
