@@ -120,6 +120,23 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // When on Hero, preload first question image so it's ready when user clicks Start
+  useEffect(() => {
+    if (typeof document === "undefined" || step !== "hero") return;
+    const url = questions[0]?.imageUrl?.trim();
+    if (!url) return;
+    let link = document.querySelector<HTMLLinkElement>('link[rel="preload"][data-intake-first-question-image]');
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.setAttribute("data-intake-first-question-image", "true");
+      document.head.appendChild(link);
+    }
+    link.href = url;
+    return () => link?.remove();
+  }, [step, questions]);
+
   useEffect(() => {
     if (typeof document === "undefined" || step !== "questions") return;
     const cta = config.cta;
