@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { Question } from "@/types";
 import { QuestionSingle } from "./QuestionSingle";
 import { QuestionMulti } from "./QuestionMulti";
@@ -55,6 +56,26 @@ export function QuestionFlow({
       onBack();
     }
   };
+
+  // Preload next question's image so it's cached when user advances
+  const nextImageUrl = questions[currentIndex + 1]?.imageUrl?.trim();
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (!nextImageUrl) {
+      document.querySelector<HTMLLinkElement>('link[rel="preload"][data-intake-next-question-image]')?.remove();
+      return;
+    }
+    let link = document.querySelector<HTMLLinkElement>('link[rel="preload"][data-intake-next-question-image]');
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.setAttribute("data-intake-next-question-image", "true");
+      document.head.appendChild(link);
+    }
+    link.href = nextImageUrl;
+    return () => link.remove();
+  }, [nextImageUrl]);
 
   const progressLabel = `Question ${currentIndex + 1} of ${questions.length}`;
 
