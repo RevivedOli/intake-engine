@@ -118,6 +118,8 @@ export interface CtaMultiChoice {
   options: CtaMultiChoiceOption[];
   /** When true, show option labels (greyed) below the contact form on the last step */
   showPreviewOnContactStep?: boolean;
+  /** Text shown above the freebie preview on the contact step. Falls back to prompt if not set. */
+  freebiePreviewPrompt?: string;
 }
 
 export type CtaConfig =

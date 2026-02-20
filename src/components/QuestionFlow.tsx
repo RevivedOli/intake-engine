@@ -82,7 +82,10 @@ export function QuestionFlow({
     cta.showPreviewOnContactStep &&
     (cta.options?.length ?? 0) > 0
       ? {
-          prompt: cta.prompt?.trim() || "Choose your freebie after submitting",
+          prompt:
+            cta.freebiePreviewPrompt?.trim() ||
+            cta.prompt?.trim() ||
+            "Choose your freebie after submitting",
           options: (cta.options ?? []).map((o) => ({ id: o.id, label: o.label })),
         }
       : undefined;

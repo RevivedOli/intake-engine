@@ -139,6 +139,7 @@ function normalizeCta(raw: unknown): CtaConfig {
     prompt: typeof c.prompt === "string" ? c.prompt : undefined,
     imageUrl: typeof c.imageUrl === "string" ? c.imageUrl : undefined,
     showPreviewOnContactStep: c.showPreviewOnContactStep === true ? true : undefined,
+    freebiePreviewPrompt: typeof c.freebiePreviewPrompt === "string" ? c.freebiePreviewPrompt : undefined,
     options: options.length ? options : [{ id: "opt_1", label: "Option 1", kind: "embed_video", variant: "direct", videoUrl: "" }],
   };
 }

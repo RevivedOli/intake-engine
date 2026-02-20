@@ -335,6 +335,23 @@ function MultiChoiceFields({
           </p>
         </div>
       </section>
+      {cta.showPreviewOnContactStep && (
+        <section>
+          <label className={labelClass}>Preview text (on contact step)</label>
+          <input
+            type="text"
+            value={cta.freebiePreviewPrompt ?? ""}
+            onChange={(e) =>
+              setCta({ ...cta, freebiePreviewPrompt: e.target.value.trim() || undefined })
+            }
+            className={inputClass}
+            placeholder="e.g. Choose your freebie after submitting"
+          />
+          <p className="text-xs text-zinc-500 mt-1">
+            Text shown above the greyed options. Leave blank to use the main prompt.
+          </p>
+        </section>
+      )}
       <section>
         <label className={labelClass}>Prompt (above options)</label>
         <input
@@ -1097,7 +1114,7 @@ function WebhookOptionFields({
         <input
           type="text"
           value={option.thankYouHeader ?? ""}
-          onChange={(e) => onUpdate({ ...option, thankYouHeader: e.target.value.trim() || undefined })}
+          onChange={(e) => onUpdate({ ...option, thankYouHeader: e.target.value === "" ? undefined : e.target.value })}
           className={inputClass}
           placeholder="e.g. Thank you."
         />
@@ -1107,7 +1124,7 @@ function WebhookOptionFields({
         <input
           type="text"
           value={option.thankYouSubheading ?? ""}
-          onChange={(e) => onUpdate({ ...option, thankYouSubheading: e.target.value.trim() || undefined })}
+          onChange={(e) => onUpdate({ ...option, thankYouSubheading: e.target.value === "" ? undefined : e.target.value })}
           className={inputClass}
           placeholder="e.g. We'll be in touch soon."
         />
