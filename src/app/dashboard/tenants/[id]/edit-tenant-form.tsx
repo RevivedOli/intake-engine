@@ -21,6 +21,8 @@ import { CTAFormFields } from "./CTAFormFields";
 import { CTAPreview } from "./CTAPreview";
 import { PrivacyPolicyFormFields } from "./PrivacyPolicyFormFields";
 import { PrivacyPolicyPreview } from "./PrivacyPolicyPreview";
+import { AnnouncementFormFields } from "./AnnouncementFormFields";
+import { AnnouncementPreview } from "./AnnouncementPreview";
 
 type Tenant = {
   name: string | null;
@@ -78,7 +80,7 @@ export function EditTenantForm({
     [tenant.questions]
   );
 
-  const [activeTab, setActiveTab] = useState<"config" | "questions" | "cta" | "privacy">("config");
+  const [activeTab, setActiveTab] = useState<"config" | "questions" | "cta" | "announcement" | "privacy">("config");
   const [config, setConfig] = useState<AppConfig>(initialConfig);
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
 
@@ -312,6 +314,17 @@ export function EditTenantForm({
               </button>
               <button
                 type="button"
+                onClick={() => setActiveTab("announcement")}
+                className={`px-4 py-2 text-sm font-medium rounded-t -mb-px ${
+                  activeTab === "announcement"
+                    ? "bg-zinc-700 text-white border border-zinc-600 border-b-0"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                Announcement
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveTab("privacy")}
                 className={`px-4 py-2 text-sm font-medium rounded-t -mb-px ${
                   activeTab === "privacy"
@@ -331,6 +344,9 @@ export function EditTenantForm({
             )}
             {activeTab === "cta" && (
               <CTAFormFields config={config} onChange={setConfig} />
+            )}
+            {activeTab === "announcement" && (
+              <AnnouncementFormFields config={config} onChange={setConfig} />
             )}
             {activeTab === "privacy" && (
               <PrivacyPolicyFormFields config={config} onChange={setConfig} />
@@ -371,6 +387,13 @@ export function EditTenantForm({
           <div className="xl:w-[360px] xl:shrink-0">
             <div className="xl:sticky xl:top-4">
               <CTAPreview config={config} />
+            </div>
+          </div>
+        )}
+        {activeTab === "announcement" && (
+          <div className="xl:w-[360px] xl:shrink-0">
+            <div className="xl:sticky xl:top-4">
+              <AnnouncementPreview config={config} />
             </div>
           </div>
         )}

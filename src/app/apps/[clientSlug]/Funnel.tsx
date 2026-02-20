@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { Hero } from "@/components/Hero";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { QuestionFlow } from "@/components/QuestionFlow";
 import { ResultScreen } from "@/components/ResultScreen";
 import type { AppConfig, FlowStep, IntakeResult } from "@/types";
@@ -35,7 +36,8 @@ interface FunnelProps {
   tenantName?: string | null;
 }
 
-const SESSION_KEY_PREFIX = "intake_session_";
+/** Session ID for this page load; new UUID on each load/refresh, same for all requests within the load */
+let sessionIdForThisLoad: string | null = null;
 
 /** Contact object keyed by canonical names (instagram, phone, email, text) for consistent webhook payload. */
 function deriveContactFromAnswers(
@@ -55,28 +57,33 @@ function deriveContactFromAnswers(
   return contact;
 }
 
-/** Answers with contact question ids removed so payload.answers only has Q1, Q2, Q3 style. */
-function answersWithoutContact(
+/** Answers keyed by question text (stable when questions reordered). Excludes contact. Handles duplicate text with (2), (3). */
+function answersWithQuestionTextKeys(
   questions: import("@/types").Question[],
   answers: Record<string, string | string[]>
 ): Record<string, string | string[]> {
   const contactIds = new Set(questions.filter((q) => q.type === "contact").map((q) => q.id));
+  const usedKeys = new Map<string, number>();
   const out: Record<string, string | string[]> = {};
-  for (const [id, value] of Object.entries(answers)) {
-    if (!contactIds.has(id)) out[id] = value;
+  for (const q of questions) {
+    if (q.type === "contact") continue;
+    const value = answers[q.id];
+    if (value === undefined) continue;
+    const baseKey = q.question?.trim() || q.id;
+    const count = (usedKeys.get(baseKey) ?? 0) + 1;
+    usedKeys.set(baseKey, count);
+    const key = count === 1 ? baseKey : `${baseKey} (${count})`;
+    out[key] = value;
   }
   return out;
 }
 
-function getOrCreateSessionId(appId: string): string {
+function getOrCreateSessionId(_appId: string): string {
   if (typeof window === "undefined") return "";
-  const key = `${SESSION_KEY_PREFIX}${appId}`;
-  let id = sessionStorage.getItem(key);
-  if (!id) {
-    id = crypto.randomUUID();
-    sessionStorage.setItem(key, id);
+  if (!sessionIdForThisLoad) {
+    sessionIdForThisLoad = crypto.randomUUID();
   }
-  return id;
+  return sessionIdForThisLoad;
 }
 
 export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
@@ -120,6 +127,8 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
   const [subChoiceOption, setSubChoiceOption] = useState<CtaMultiChoiceOptionVideoSubChoice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /** Set when user submits contact form; used to mask contact in CTA webhooks if consent wasn't given */
+  const [consentGivenAtSubmit, setConsentGivenAtSubmit] = useState<boolean | null>(null);
 
   // When on Hero, preload first question image so it's ready when user clicks Start
   useEffect(() => {
@@ -198,6 +207,8 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
         contact?: Record<string, string>;
         question_index?: number;
         question_id?: string;
+        /** Actual question text for this step (stable when questions are reordered) */
+        step_question?: string;
       } = {}
     ) => ({
       app_id: appId,
@@ -207,7 +218,8 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
       step: overrides.step,
       question_index: overrides.question_index,
       question_id: overrides.question_id,
-      answers: answersWithoutContact(questions, overrides.answers ?? answers),
+      step_question: overrides.step_question,
+      answers: answersWithQuestionTextKeys(questions, overrides.answers ?? answers),
       contact: overrides.contact ?? derivedContact,
       utm,
     }),
@@ -219,7 +231,8 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
       stepName: string,
       answersSoFar: Record<string, string | string[]>,
       questionIndex?: number,
-      questionId?: string
+      questionId?: string,
+      stepQuestion?: string
     ) => {
       try {
         const contactSoFar = deriveContactFromAnswers(questions, answersSoFar);
@@ -233,6 +246,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
               contact: contactSoFar,
               question_index: questionIndex,
               question_id: questionId,
+              step_question: stepQuestion,
             })
           ),
         });
@@ -246,7 +260,10 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
   const moveToStep = useCallback(
     (nextStep: FlowStep, nextIndex: number, answersSoFar: Record<string, string | string[]>) => {
       const prevStep = config.steps[stepIndex];
-      if (prevStep) sendProgress(prevStep, answersSoFar);
+      // Skip hero progress when moving to questions; handleStart sends the "reached first question" progress
+      if (prevStep && !(prevStep === "hero" && nextStep === "questions")) {
+        sendProgress(prevStep, answersSoFar);
+      }
       setStep(nextStep);
       setStepIndex(nextIndex);
     },
@@ -258,7 +275,8 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
     if (idx >= 0) {
       setQuestionIndex(0);
       moveToStep("questions", idx, answers);
-      sendProgress("questions", answers, 0, getFirstQuestionOfLogicalStep(questions, 0)?.id);
+      const firstQ = getFirstQuestionOfLogicalStep(questions, 0);
+      sendProgress("questions", answers, 0, firstQ?.id, firstQ?.question);
     }
   }, [config.steps, answers, moveToStep, sendProgress, questions]);
 
@@ -275,19 +293,38 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
   }, [config.steps, questionIndex]);
 
   const handleQuestionsComplete = useCallback(
-    async (answersSoFar?: Record<string, string | string[]>) => {
+    async (
+      answersSoFar?: Record<string, string | string[]>,
+      opts?: { consentGiven?: boolean }
+    ) => {
       const a = answersSoFar ?? answers;
       setAnswers(a);
       setError(null);
       setSubmitting(true);
       try {
         const contactPayload = deriveContactFromAnswers(questions, a);
+        const logicalStepsCount = computeLogicalSteps(questions).length;
+        const lastQ = logicalStepsCount > 0
+          ? getFirstQuestionOfLogicalStep(questions, logicalStepsCount - 1)
+          : undefined;
+        const body = buildPayload("submit", {
+          answers: a,
+          contact: contactPayload,
+          step: "questions",
+          question_index: logicalStepsCount - 1,
+          question_id: lastQ?.id,
+          step_question: lastQ?.question,
+        });
+        if (typeof opts?.consentGiven === "boolean") {
+          (body as Record<string, unknown>).consent_given = opts.consentGiven;
+          setConsentGivenAtSubmit(opts.consentGiven);
+        } else {
+          setConsentGivenAtSubmit(true);
+        }
         const res = await fetch("/api/intake", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            buildPayload("submit", { answers: a, contact: contactPayload })
-          ),
+          body: JSON.stringify(body),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -360,6 +397,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
             ...buildPayload("submit"),
             cta_tag: option.webhookTag,
             ...(option.webhookUrl ? { cta_webhook_url: option.webhookUrl } : {}),
+            ...(typeof consentGivenAtSubmit === "boolean" ? { consent_given: consentGivenAtSubmit } : {}),
           };
           await fetch("/api/intake", {
             method: "POST",
@@ -378,7 +416,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
         setSubChoiceOption(null);
       }
     },
-    [buildPayload, resolveCtaViewFromOption]
+    [buildPayload, consentGivenAtSubmit, resolveCtaViewFromOption]
   );
 
   const handleSelectSubChoice = useCallback((_optionId: string, subChoiceIndex: number) => {
@@ -398,10 +436,16 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
 
   const currentStepName = config.steps[stepIndex];
 
+  const announcement = config.announcement;
+  const showAnnouncement =
+    announcement?.enabled &&
+    announcement.message?.trim() &&
+    (announcement.scope === "full" || (announcement.scope === "hero" && step === "hero"));
+
   return (
     <ThemeProvider theme={config.theme}>
       <div
-        className="min-h-screen"
+        className={showAnnouncement ? "h-screen flex flex-col overflow-hidden" : "min-h-screen"}
         style={{
           background:
             config.theme.background?.startsWith("http")
@@ -410,49 +454,67 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
           fontFamily: config.theme.fontFamily ?? "var(--font-sans)",
         }}
       >
-        {step === "hero" && config.hero && (
-          <Hero config={config.hero} onStart={handleStart} />
-        )}
-
-        {step === "questions" && questions.length > 0 && (
-          <>
-            {error && (
-              <p className="text-center text-amber-400 text-sm mt-4 px-6">
-                {error}
-              </p>
-            )}
-            <QuestionFlow
-            questions={questions}
-            answers={answers}
-            currentIndex={questionIndex}
-            onAnswersChange={setAnswers}
-            onStepChange={(idx, answersSoFar) => {
-              if (idx > questionIndex) {
-                const firstQuestion = getFirstQuestionOfLogicalStep(questions, idx);
-                sendProgress("questions", answersSoFar ?? answers, idx, firstQuestion?.id);
-              }
-              setQuestionIndex(idx);
-            }}
-            onComplete={handleQuestionsComplete}
-            onBack={handleQuestionsBack}
-            stepName="questions"
-            textQuestionButtonLabel={config.textQuestionButtonLabel}
-            config={config}
-          />
-          </>
-        )}
-
-        {step === "result" && (
-          <ResultScreen
-            result={null}
-            cta={config.cta ?? { type: "thank_you", message: config.defaultThankYouMessage ?? "Thank you." }}
-            ctaView={ctaView}
-            subChoiceOption={subChoiceOption}
-            onSelectOption={config.cta?.type === "multi_choice" ? handleSelectOption : undefined}
-            onSelectSubChoice={config.cta?.type === "multi_choice" ? handleSelectSubChoice : undefined}
-            defaultThankYouMessage={config.defaultThankYouMessage}
+        {showAnnouncement && (
+          <AnnouncementBanner
+            message={announcement!.message}
+            backgroundColor={announcement!.backgroundColor ?? "#c41e3a"}
+            textColor={announcement!.textColor ?? "#ffffff"}
           />
         )}
+        <div className={showAnnouncement ? "flex-1 min-h-0 overflow-hidden flex flex-col" : undefined}>
+          {step === "hero" && config.hero && (
+            <Hero config={config.hero} onStart={handleStart} fillContainer={showAnnouncement} />
+          )}
+
+          {step === "questions" && questions.length > 0 && (
+            <>
+              {error && (
+                <p className="text-center text-amber-400 text-sm mt-4 px-6">
+                  {error}
+                </p>
+              )}
+              <QuestionFlow
+                questions={questions}
+                answers={answers}
+                currentIndex={questionIndex}
+                onAnswersChange={setAnswers}
+                onStepChange={(idx, answersSoFar) => {
+                  if (idx > questionIndex) {
+                    // Last step = question they just completed (current index), not the one they're moving to
+                    const completedQ = getFirstQuestionOfLogicalStep(questions, questionIndex);
+                    sendProgress(
+                      "questions",
+                      answersSoFar ?? answers,
+                      questionIndex,
+                      completedQ?.id,
+                      completedQ?.question
+                    );
+                  }
+                  setQuestionIndex(idx);
+                }}
+                onComplete={handleQuestionsComplete}
+                onBack={handleQuestionsBack}
+                stepName="questions"
+                textQuestionButtonLabel={config.textQuestionButtonLabel}
+                config={config}
+                fillContainer={showAnnouncement}
+              />
+            </>
+          )}
+
+          {step === "result" && (
+            <ResultScreen
+              result={null}
+              cta={config.cta ?? { type: "thank_you", message: config.defaultThankYouMessage ?? "Thank you." }}
+              ctaView={ctaView}
+              subChoiceOption={subChoiceOption}
+              onSelectOption={config.cta?.type === "multi_choice" ? handleSelectOption : undefined}
+              onSelectSubChoice={config.cta?.type === "multi_choice" ? handleSelectSubChoice : undefined}
+              defaultThankYouMessage={config.defaultThankYouMessage}
+              fillContainer={showAnnouncement}
+            />
+          )}
+        </div>
       </div>
     </ThemeProvider>
   );

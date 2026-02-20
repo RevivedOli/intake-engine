@@ -51,13 +51,17 @@ function nextQuestionId(questions: Question[]): string {
 function SortableQuestionCard({
   question,
   index,
+  questions,
   onUpdate,
   onRemove,
+  onSetConsentUnder,
 }: {
   question: Question;
   index: number;
+  questions: Question[];
   onUpdate: (patch: Partial<Question>) => void;
   onRemove: () => void;
+  onSetConsentUnder?: (questionIndex: number) => void;
 }) {
   const {
     attributes,
@@ -204,6 +208,28 @@ function SortableQuestionCard({
               className={inputClass}
             />
           </div>
+          {onSetConsentUnder && (
+            <>
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id={`consent-under-${question.id}`}
+                  checked={question.showConsentUnder ?? false}
+                  onChange={(e) => {
+                    if (e.target.checked) onSetConsentUnder(index);
+                    else onUpdate({ showConsentUnder: false });
+                  }}
+                  className="mt-1 rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+                />
+                <label htmlFor={`consent-under-${question.id}`} className="text-sm text-zinc-300">
+                  Show consent checkbox below this field
+                </label>
+              </div>
+              <p className="text-xs text-zinc-500 -mt-1">
+                Only one contact field per block should have the consent. Reduces friction by placing it under a single field.
+              </p>
+            </>
+          )}
         </>
       )}
 
@@ -422,6 +448,22 @@ export function QuestionsFormFields({
     onChange(next);
   }
 
+  /** Set consent checkbox to appear under this contact question; clear it on others in the same block */
+  function setConsentUnderQuestion(questionIndex: number) {
+    const q = questions[questionIndex];
+    if (!q || q.type !== "contact") return;
+    let start = questionIndex;
+    let end = questionIndex;
+    while (start > 0 && questions[start - 1].type === "contact") start--;
+    while (end < questions.length - 1 && questions[end + 1].type === "contact") end++;
+    const next = questions.map((question, i) =>
+      question.type === "contact" && i >= start && i <= end
+        ? { ...question, showConsentUnder: i === questionIndex }
+        : question
+    );
+    onChange(next);
+  }
+
   function addQuestion() {
     const id = nextQuestionId(questions);
     onChange([
@@ -520,8 +562,10 @@ export function QuestionsFormFields({
                 <SortableQuestionCard
                   question={q}
                   index={i}
+                  questions={questions}
                   onUpdate={(patch) => updateQuestion(i, patch)}
                   onRemove={() => setPendingRemoveIndex(i)}
+                  onSetConsentUnder={q.type === "contact" ? setConsentUnderQuestion : undefined}
                 />
               </li>
             ))}

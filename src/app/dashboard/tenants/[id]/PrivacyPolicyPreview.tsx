@@ -1,8 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AppConfig } from "@/types/config";
+
+const WIDTH_OPTIONS = [
+  { value: 320, label: "320px" },
+  { value: 360, label: "360px" },
+  { value: 480, label: "480px" },
+  { value: 768, label: "768px" },
+  { value: "100%", label: "Full" },
+] as const;
 
 function getPrivacyMode(pp: AppConfig["privacyPolicy"]): "internal" | "external" {
   if (!pp || typeof pp !== "object") return "internal";
@@ -12,6 +21,7 @@ function getPrivacyMode(pp: AppConfig["privacyPolicy"]): "internal" | "external"
 }
 
 export function PrivacyPolicyPreview({ config }: { config: AppConfig }) {
+  const [width, setWidth] = useState<number | "100%">(360);
   const theme = config.theme ?? {};
   const primary = theme.primaryColor ?? "#4a6b5a";
   const bg = theme.background ?? "#0d1f18";
@@ -31,10 +41,27 @@ export function PrivacyPolicyPreview({ config }: { config: AppConfig }) {
   return (
     <div
       className="rounded-lg border border-zinc-600 overflow-hidden shadow-lg flex flex-col shrink-0"
-      style={{ maxWidth: 360 }}
+      style={{
+        maxWidth: width === "100%" ? "100%" : width,
+        width: width === "100%" ? "100%" : width,
+      }}
     >
-      <div className="px-3 py-2 border-b border-zinc-600 bg-zinc-800/80 text-zinc-400 text-xs font-medium">
-        Privacy policy preview
+      <div className="px-3 py-2 border-b border-zinc-600 bg-zinc-800/80 text-zinc-400 text-xs font-medium flex items-center justify-between gap-2 flex-wrap">
+        <span>Privacy policy preview</span>
+        <select
+          value={width}
+          onChange={(e) =>
+            setWidth(e.target.value === "100%" ? "100%" : Number(e.target.value))
+          }
+          className="rounded bg-zinc-700 border border-zinc-600 text-zinc-200 text-xs py-1 px-2"
+          aria-label="Preview width"
+        >
+          {WIDTH_OPTIONS.map((o) => (
+            <option key={String(o.value)} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </div>
       <div
         className="p-5 flex-1 overflow-y-auto min-h-[320px]"

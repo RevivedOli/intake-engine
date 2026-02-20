@@ -116,6 +116,8 @@ export interface CtaMultiChoice {
   /** Optional image shown above the multi-choice options (ImageKit URL) */
   imageUrl?: string;
   options: CtaMultiChoiceOption[];
+  /** When true, show option labels (greyed) below the contact form on the last step */
+  showPreviewOnContactStep?: boolean;
 }
 
 export type CtaConfig =
@@ -123,6 +125,21 @@ export type CtaConfig =
   | CtaLink
   | CtaEmbed
   | CtaMultiChoice;
+
+// --- Announcement banner (top strip) ---
+
+export interface AnnouncementConfig {
+  /** Whether the banner is visible */
+  enabled: boolean;
+  /** Message text (e.g. "Sale ends 15th October" or "Free shipping on orders over £50") */
+  message: string;
+  /** Background colour (hex, e.g. #c41e3a) */
+  backgroundColor: string;
+  /** Text colour (hex, e.g. #ffffff) */
+  textColor: string;
+  /** "hero" = only on hero step; "full" = on all steps (hero, questions, result) */
+  scope: "hero" | "full";
+}
 
 /** Resolved view when showing one outcome of a multi-choice CTA (or direct CTA) */
 export type CtaResolvedView =
@@ -153,4 +170,6 @@ export interface AppConfig {
     | { enabled: boolean; content: string }; /** @deprecated use mode */
   /** Contact consent checkbox label. Shown under contact fields. Include "Privacy Policy" to add the link. */
   contactConsentLabel?: string;
+  /** Announcement banner (thin strip at top) */
+  announcement?: AnnouncementConfig;
 }

@@ -15,6 +15,8 @@ export interface IntakeRequest {
   question_index?: number;
   /** For event "progress" when step is "questions": id of that question */
   question_id?: string;
+  /** Actual question text for the step reached (stable when questions are reordered) */
+  step_question?: string;
   [key: string]: unknown; // per-app extras forwarded as-is
 }
 

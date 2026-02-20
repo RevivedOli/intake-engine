@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTenantById } from "@/lib/db";
 import { forwardToN8n, forwardToN8nWithUrl, getWebhookUrl } from "@/api/n8n";
 import { contactKindToPayloadKey } from "@/lib/contact-payload";
+import { isConsentRequired, getPrivacyPolicyLink } from "@/lib/privacy-policy";
 import type { IntakeRequest, Question } from "@/types";
 
 function parseBody(body: unknown): IntakeRequest | null {
@@ -23,7 +24,16 @@ function parseBody(body: unknown): IntakeRequest | null {
   if (typeof o.session_id === "string" && o.session_id) payload.session_id = o.session_id;
   if (typeof o.question_index === "number") payload.question_index = o.question_index;
   if (typeof o.question_id === "string") payload.question_id = o.question_id;
+  if (typeof o.step_question === "string" && o.step_question.trim())
+    (payload as Record<string, unknown>).step_question = o.step_question.trim();
   return payload;
+}
+
+/** Parse consent_given from body. Returns true only when explicitly true; undefined/absent is treated as not given. */
+function parseConsentGiven(body: unknown): boolean {
+  if (!body || typeof body !== "object") return false;
+  const o = body as Record<string, unknown>;
+  return o.consent_given === true;
 }
 
 /** Optional: for CTA "webhook then message" option – tag and optional webhook URL override */
@@ -45,6 +55,7 @@ function validateContact(
     const key = contactKindToPayloadKey(field.type as "email" | "tel" | "instagram" | "text");
     const value = contact[key] ?? "";
     const trimmed = String(value).trim();
+    if (trimmed === "hidden") continue; // sentinel when consent not given; no format validation
     if (field.required && !trimmed) {
       return { ok: false, message: `Missing required field: ${key}` };
     }
@@ -88,6 +99,20 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const hasConsentPlacement =
+      isConsentRequired(tenant.config) &&
+      !!getPrivacyPolicyLink(tenant.config) &&
+      (tenant.questions ?? []).some((q: Question) => q.showConsentUnder);
+    const consentGivenExplicitTrue = parseConsentGiven(body);
+    const consentGiven =
+      hasConsentPlacement ? consentGivenExplicitTrue : true;
+    if (!consentGiven) {
+      for (const k of Object.keys(payload.contact)) {
+        payload.contact[k] = "hidden";
+      }
+    }
+    (payload as Record<string, unknown>).consent_given = consentGiven;
 
     if (payload.event === "submit") {
       const contactFieldsFromQuestions = (tenant.questions ?? [])

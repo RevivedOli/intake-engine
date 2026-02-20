@@ -1,6 +1,14 @@
 "use client";
 
 import { useState } from "react";
+
+const WIDTH_OPTIONS = [
+  { value: 320, label: "320px" },
+  { value: 360, label: "360px" },
+  { value: 480, label: "480px" },
+  { value: 768, label: "768px" },
+  { value: "100%", label: "Full" },
+] as const;
 import type {
   AppConfig,
   CtaConfig,
@@ -16,6 +24,7 @@ export function CTAPreview({ config }: { config: AppConfig }) {
   const bg = theme.background ?? "#0d1f18";
   const fontFamily = theme.fontFamily ?? "var(--font-sans)";
 
+  const [width, setWidth] = useState<number | "100%">(360);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [selectedSubChoiceIndex, setSelectedSubChoiceIndex] = useState<number | null>(null);
 
@@ -31,10 +40,27 @@ export function CTAPreview({ config }: { config: AppConfig }) {
     return (
       <div
         className="rounded-lg border border-zinc-600 overflow-hidden shadow-lg flex flex-col shrink-0"
-        style={{ maxWidth: 360 }}
+        style={{
+          maxWidth: width === "100%" ? "100%" : width,
+          width: width === "100%" ? "100%" : width,
+        }}
       >
-        <div className="px-3 py-2 border-b border-zinc-600 bg-zinc-800/80 text-zinc-400 text-xs font-medium">
-          CTA preview
+        <div className="px-3 py-2 border-b border-zinc-600 bg-zinc-800/80 text-zinc-400 text-xs font-medium flex items-center justify-between gap-2 flex-wrap">
+          <span>CTA preview</span>
+          <select
+            value={width}
+            onChange={(e) =>
+              setWidth(e.target.value === "100%" ? "100%" : Number(e.target.value))
+            }
+            className="rounded bg-zinc-700 border border-zinc-600 text-zinc-200 text-xs py-1 px-2"
+            aria-label="Preview width"
+          >
+            {WIDTH_OPTIONS.map((o) => (
+              <option key={String(o.value)} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </div>
         <div
           className="p-4 flex flex-col items-center justify-center text-center"
@@ -137,19 +163,38 @@ export function CTAPreview({ config }: { config: AppConfig }) {
   return (
     <div
       className="rounded-lg border border-zinc-600 overflow-hidden shadow-lg flex flex-col shrink-0"
-      style={{ maxWidth: 360 }}
+      style={{
+        maxWidth: width === "100%" ? "100%" : width,
+        width: width === "100%" ? "100%" : width,
+      }}
     >
-      <div className="px-3 py-2 border-b border-zinc-600 bg-zinc-800/80 text-zinc-400 text-xs font-medium flex items-center justify-between gap-2">
+      <div className="px-3 py-2 border-b border-zinc-600 bg-zinc-800/80 text-zinc-400 text-xs font-medium flex items-center justify-between gap-2 flex-wrap">
         <span>CTA preview</span>
-        {(showResolved || showSubPicker) && (
-          <button
-            type="button"
-            onClick={handleBackToOptions}
-            className="text-zinc-500 hover:text-zinc-300"
+        <div className="flex items-center gap-2">
+          {(showResolved || showSubPicker) && (
+            <button
+              type="button"
+              onClick={handleBackToOptions}
+              className="text-zinc-500 hover:text-zinc-300"
+            >
+              Back to options
+            </button>
+          )}
+          <select
+            value={width}
+            onChange={(e) =>
+              setWidth(e.target.value === "100%" ? "100%" : Number(e.target.value))
+            }
+            className="rounded bg-zinc-700 border border-zinc-600 text-zinc-200 text-xs py-1 px-2"
+            aria-label="Preview width"
           >
-            Back to options
-          </button>
-        )}
+            {WIDTH_OPTIONS.map((o) => (
+              <option key={String(o.value)} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       <div
         className="p-4 flex flex-col items-center justify-center text-center overflow-auto"

@@ -68,15 +68,22 @@ export interface PrivacyPolicyLink {
   openInNewTab: boolean;
 }
 
+export interface FreebiePreviewOption {
+  id: string;
+  label: string;
+}
+
 interface QuestionContactBlockProps {
   questions: Question[];
   answers: Record<string, string | string[]>;
   onAnswersChange: (answers: Record<string, string | string[]>) => void;
-  onNext: (answersWithCurrent?: Record<string, string | string[]>) => void;
+  onNext: (answersWithCurrent?: Record<string, string | string[]>, opts?: { consentGiven?: boolean }) => void;
   submitButtonLabel?: string;
   privacyPolicyLink?: PrivacyPolicyLink | null;
   consentRequired?: boolean;
   consentLabel?: string;
+  /** Greyed-out preview of freebie options shown below contact form */
+  freebiePreview?: { prompt?: string; options: FreebiePreviewOption[] };
 }
 
 export function QuestionContactBlock({
@@ -88,6 +95,7 @@ export function QuestionContactBlock({
   privacyPolicyLink,
   consentRequired = false,
   consentLabel = "I agree to share my information in accordance with the Privacy Policy.",
+  freebiePreview,
 }: QuestionContactBlockProps) {
   const theme = useTheme();
   const primary = theme.primaryColor ?? "#a47f4c";
@@ -95,7 +103,8 @@ export function QuestionContactBlock({
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [consentChecked, setConsentChecked] = useState(false);
 
-  const showConsent = consentRequired && privacyPolicyLink;
+  const hasConsentPlacement = questions.some((q) => q.showConsentUnder);
+  const showConsent = consentRequired && privacyPolicyLink && hasConsentPlacement;
 
   const setAnswer = (id: string, value: string) => {
     onAnswersChange({ ...answers, [id]: value });
@@ -131,7 +140,7 @@ export function QuestionContactBlock({
       canSubmit = false;
     }
   }
-  if (showConsent && !consentChecked) canSubmit = false;
+  // Allow submit even without consent; we pass consentGiven so API can send "hidden" for contact fields
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,7 +148,10 @@ export function QuestionContactBlock({
     questions.forEach((q) => { newTouched[q.id] = true; });
     setTouched((prev) => ({ ...prev, ...newTouched }));
     if (!canSubmit) return;
-    onNext({ ...answers });
+    onNext(
+      { ...answers },
+      showConsent ? { consentGiven: consentChecked } : undefined
+    );
   };
 
   const scrollInputAboveKeyboard = () => {
@@ -174,49 +186,85 @@ export function QuestionContactBlock({
         )}
         <div className="mt-4 space-y-4">
           {questions.map((q) => (
-            <ContactFieldRow
-              key={q.id}
-              question={q}
-              value={(answers[q.id] as string) ?? ""}
-              onChange={(v) => setAnswer(q.id, v)}
-              error={errors[q.id]}
-              onBlur={() => setTouched((t) => ({ ...t, [q.id]: true }))}
-              onFocus={scrollInputAboveKeyboard}
-            />
+            <div key={q.id}>
+              <ContactFieldRow
+                question={q}
+                value={(answers[q.id] as string) ?? ""}
+                onChange={(v) => setAnswer(q.id, v)}
+                error={errors[q.id]}
+                onBlur={() => setTouched((t) => ({ ...t, [q.id]: true }))}
+                onFocus={scrollInputAboveKeyboard}
+              />
+              {showConsent && q.showConsentUnder && (
+                <div className="mt-4 flex items-start gap-3">
+                  <input
+                    id="contact-consent"
+                    type="checkbox"
+                    checked={consentChecked}
+                    onChange={(e) => setConsentChecked(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-white/30 bg-transparent text-white focus:ring-white/50 focus:ring-offset-0"
+                    aria-describedby="contact-consent-label"
+                  />
+                  <label id="contact-consent-label" htmlFor="contact-consent" className="text-sm text-white/90">
+                    {(() => {
+                      if (!consentLabel.includes("Privacy Policy") || !privacyPolicyLink) return consentLabel;
+                      const parts = consentLabel.split("Privacy Policy");
+                      return parts.map((part, i) => (
+                        <span key={i}>
+                          {part}
+                          {i < parts.length - 1 && (
+                            <a
+                              href={privacyPolicyLink.href}
+                              target={privacyPolicyLink.openInNewTab ? "_blank" : undefined}
+                              rel={privacyPolicyLink.openInNewTab ? "noopener noreferrer" : undefined}
+                              className="underline hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50 rounded"
+                            >
+                              Privacy Policy
+                            </a>
+                          )}
+                        </span>
+                      ));
+                    })()}
+                  </label>
+                </div>
+              )}
+            </div>
           ))}
         </div>
 
-        {showConsent && (
-          <div className="mt-6 flex items-start gap-3">
-            <input
-              id="contact-consent"
-              type="checkbox"
-              checked={consentChecked}
-              onChange={(e) => setConsentChecked(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-white/30 bg-transparent text-white focus:ring-white/50 focus:ring-offset-0"
-              aria-describedby="contact-consent-label"
-            />
-            <label id="contact-consent-label" htmlFor="contact-consent" className="text-sm text-white/90">
-              {(() => {
-                if (!consentLabel.includes("Privacy Policy") || !privacyPolicyLink) return consentLabel;
-                const parts = consentLabel.split("Privacy Policy");
-                return parts.map((part, i) => (
-                  <span key={i}>
-                    {part}
-                    {i < parts.length - 1 && (
-                      <a
-                        href={privacyPolicyLink.href}
-                        target={privacyPolicyLink.openInNewTab ? "_blank" : undefined}
-                        rel={privacyPolicyLink.openInNewTab ? "noopener noreferrer" : undefined}
-                        className="underline hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50 rounded"
-                      >
-                        Privacy Policy
-                      </a>
-                    )}
-                  </span>
-                ));
-              })()}
-            </label>
+        {freebiePreview && freebiePreview.options.length > 0 && (
+          <div className="mt-6">
+            {freebiePreview.prompt?.trim() && (
+              <p className="text-white/80 text-center mb-4 text-sm">
+                {freebiePreview.prompt.trim()}
+              </p>
+            )}
+            <div className="flex flex-col gap-3">
+              {freebiePreview.options.map((option) => (
+                <div
+                  key={option.id}
+                  className="w-full px-6 py-3 rounded-lg font-medium text-left text-white/60 border border-white/20 opacity-50 cursor-not-allowed flex items-center gap-2"
+                  style={{ fontFamily }}
+                  aria-hidden
+                >
+                  <svg
+                    className="w-4 h-4 shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                  {option.label}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

@@ -24,6 +24,8 @@ interface ResultScreenProps {
   /** Called when user selects a sub-choice (e.g. video category) */
   onSelectSubChoice?: (optionId: string, subChoiceIndex: number) => void;
   defaultThankYouMessage?: string;
+  /** When true, use min-h-full to fill the container (e.g. when announcement banner reduces viewport) */
+  fillContainer?: boolean;
 }
 
 export function ResultScreen({
@@ -34,10 +36,13 @@ export function ResultScreen({
   onSelectOption,
   onSelectSubChoice,
   defaultThankYouMessage,
+  fillContainer,
 }: ResultScreenProps) {
   const theme = useTheme();
   const primary = theme.primaryColor ?? "#a47f4c";
   const fontFamily = theme.fontFamily ?? "var(--font-sans)";
+
+  const minH = fillContainer ? "min-h-full" : "min-h-screen";
 
   // --- CTA-driven rendering (preferred when cta is set) ---
   if (cta) {
@@ -48,6 +53,7 @@ export function ResultScreen({
           primary={primary}
           fontFamily={fontFamily}
           defaultThankYouMessage={defaultThankYouMessage}
+          minH={minH}
         />
       );
     }
@@ -61,6 +67,7 @@ export function ResultScreen({
         defaultThankYouMessage={defaultThankYouMessage}
         onSelectOption={onSelectOption}
         onSelectSubChoice={onSelectSubChoice}
+        minH={minH}
       />
     );
   }
@@ -71,7 +78,7 @@ export function ResultScreen({
   if ("job_id" in result) {
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center p-8 text-white/80"
+        className={`${minH} flex flex-col items-center justify-center p-8 text-white/80`}
         style={{ fontFamily }}
       >
         <p>Processing…</p>
@@ -84,7 +91,7 @@ export function ResultScreen({
       result.message ?? defaultThankYouMessage ?? "Thank you.";
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center p-8 text-center animate-fade-in"
+        className={`${minH} flex flex-col items-center justify-center p-8 text-center animate-fade-in`}
         style={{ fontFamily }}
       >
         <p className="text-xl text-white/95 max-w-md whitespace-pre-line">{message}</p>
@@ -95,7 +102,7 @@ export function ResultScreen({
   if (result.mode === "link") {
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center p-8 text-center animate-fade-in"
+        className={`${minH} flex flex-col items-center justify-center p-8 text-center animate-fade-in`}
         style={{ fontFamily }}
       >
         <a
@@ -119,7 +126,7 @@ export function ResultScreen({
       const r = result as EmbedResultWithUrl;
       return (
         <div
-          className="min-h-screen p-6 sm:p-8 flex flex-col items-center justify-center animate-fade-in max-w-2xl mx-auto"
+          className={`${minH} p-6 sm:p-8 flex flex-col items-center justify-center animate-fade-in max-w-2xl mx-auto`}
           style={{ fontFamily }}
         >
           {r.title && (
@@ -163,7 +170,7 @@ export function ResultScreen({
       const r = result as EmbedResultWithHtml;
       return (
         <div
-          className="min-h-screen p-6 sm:p-8 animate-fade-in"
+          className={`${minH} p-6 sm:p-8 animate-fade-in`}
           style={{ fontFamily }}
         >
           <iframe
@@ -185,17 +192,19 @@ function CtaResultView({
   primary,
   fontFamily,
   defaultThankYouMessage,
+  minH = "min-h-screen",
 }: {
   cta: Exclude<CtaConfig, { type: "multi_choice" }>;
   primary: string;
   fontFamily: string;
   defaultThankYouMessage?: string;
+  minH?: string;
 }) {
   if (cta.type === "thank_you") {
     const message = cta.message ?? defaultThankYouMessage ?? "Thank you.";
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center p-8 text-center animate-fade-in"
+        className={`${minH} flex flex-col items-center justify-center p-8 text-center animate-fade-in`}
         style={{ fontFamily }}
       >
         <p className="text-xl text-white/95 max-w-md whitespace-pre-line">{message}</p>
@@ -206,7 +215,7 @@ function CtaResultView({
   if (cta.type === "link") {
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center p-8 text-center animate-fade-in"
+        className={`${minH} flex flex-col items-center justify-center p-8 text-center animate-fade-in`}
         style={{ fontFamily }}
       >
         <a
@@ -225,7 +234,7 @@ function CtaResultView({
   if (cta.type === "embed") {
     return (
       <div
-        className="min-h-screen p-6 sm:p-8 flex flex-col items-center justify-center animate-fade-in max-w-2xl mx-auto"
+        className={`${minH} p-6 sm:p-8 flex flex-col items-center justify-center animate-fade-in max-w-2xl mx-auto`}
         style={{ fontFamily }}
       >
         {cta.title && (
@@ -277,6 +286,7 @@ function CtaMultiChoiceView({
   defaultThankYouMessage,
   onSelectOption,
   onSelectSubChoice,
+  minH = "min-h-screen",
 }: {
   cta: Extract<CtaConfig, { type: "multi_choice" }>;
   ctaView: CtaResolvedView | null | undefined;
@@ -286,9 +296,10 @@ function CtaMultiChoiceView({
   defaultThankYouMessage?: string;
   onSelectOption?: (optionId: string, option: CtaMultiChoiceOption) => void;
   onSelectSubChoice?: (optionId: string, subChoiceIndex: number) => void;
+  minH?: string;
 }) {
   const baseClass =
-    "min-h-screen p-6 sm:p-8 flex flex-col items-center justify-center animate-fade-in-up max-w-2xl mx-auto";
+    `${minH} p-6 sm:p-8 flex flex-col items-center justify-center animate-fade-in-up max-w-2xl mx-auto`;
   const style = { fontFamily };
 
   if (ctaView) {

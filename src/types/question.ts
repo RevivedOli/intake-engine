@@ -19,4 +19,6 @@ export interface Question {
   placeholder?: string;
   /** When type === "contact": whether the field is required (default true) */
   required?: boolean;
+  /** When type === "contact": show the consent checkbox below this field (at most one per contact block) */
+  showConsentUnder?: boolean;
 }

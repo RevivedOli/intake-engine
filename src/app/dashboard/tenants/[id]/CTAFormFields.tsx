@@ -318,6 +318,23 @@ function MultiChoiceFields({
           placeholder="Paste image URL or use ImageKit"
         />
       </section>
+      <section className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          id="cta-show-preview-on-contact"
+          checked={cta.showPreviewOnContactStep ?? false}
+          onChange={(e) => setCta({ ...cta, showPreviewOnContactStep: e.target.checked })}
+          className="mt-1 rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500"
+        />
+        <div>
+          <label htmlFor="cta-show-preview-on-contact" className="text-sm text-zinc-300">
+            Show freebie preview on contact step
+          </label>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            When the last question is contact details, show these options greyed out below the form.
+          </p>
+        </div>
+      </section>
       <section>
         <label className={labelClass}>Prompt (above options)</label>
         <input

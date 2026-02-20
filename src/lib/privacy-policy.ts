@@ -24,12 +24,12 @@ export function getPrivacyPolicyLink(config: AppConfig | undefined): PrivacyPoli
   if (raw.mode === "internal") {
     const content = typeof raw.content === "string" ? raw.content.trim() : "";
     if (!content) return null;
-    return { href: "/privacy-policy", openInNewTab: false };
+    return { href: "/privacy-policy", openInNewTab: true };
   }
 
   // Legacy schema: { enabled, content }
   if (raw.enabled && typeof raw.content === "string" && raw.content.trim()) {
-    return { href: "/privacy-policy", openInNewTab: false };
+    return { href: "/privacy-policy", openInNewTab: true };
   }
 
   return null;
