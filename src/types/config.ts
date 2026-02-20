@@ -146,4 +146,11 @@ export interface AppConfig {
   textQuestionButtonLabel?: string;
   /** Post-submit CTA: what to show after lead submits (in-app; n8n is fire-and-forget) */
   cta?: CtaConfig;
+  /** Privacy policy: internal (Markdown at /privacy-policy) or external URL link */
+  privacyPolicy?:
+    | { mode: "internal"; content?: string }
+    | { mode: "external"; url?: string }
+    | { enabled: boolean; content: string }; /** @deprecated use mode */
+  /** Contact consent checkbox label. Shown under contact fields. Include "Privacy Policy" to add the link. */
+  contactConsentLabel?: string;
 }

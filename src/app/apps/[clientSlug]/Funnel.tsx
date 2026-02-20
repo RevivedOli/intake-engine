@@ -14,6 +14,7 @@ import type {
   CtaResolvedView,
 } from "@/types/config";
 import { contactKindToPayloadKey } from "@/lib/contact-payload";
+import { getFirstQuestionOfLogicalStep, computeLogicalSteps } from "@/lib/logical-steps";
 
 const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"] as const;
 
@@ -157,9 +158,10 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
   }, [step, config.cta]);
 
   // When on the before-last question, preload all CTA images (main + sub-choice) so they're ready on result
+  const logicalStepsCount = useMemo(() => computeLogicalSteps(questions).length, [questions]);
   useEffect(() => {
     if (typeof document === "undefined" || step !== "questions") return;
-    if (questions.length < 2 || questionIndex !== questions.length - 2) return;
+    if (logicalStepsCount < 2 || questionIndex !== logicalStepsCount - 2) return;
     const cta = config.cta;
     if (cta?.type !== "multi_choice") return;
     const urls: string[] = [];
@@ -180,7 +182,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
       links.push(link);
     });
     return () => links.forEach((l) => l.remove());
-  }, [step, questionIndex, questions.length, config.cta]);
+  }, [step, questionIndex, logicalStepsCount, config.cta]);
 
   const utm = useMemo(
     () => (searchParams ? utmFromSearchParams(searchParams) : {}),
@@ -256,7 +258,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
     if (idx >= 0) {
       setQuestionIndex(0);
       moveToStep("questions", idx, answers);
-      sendProgress("questions", answers, 0, questions[0]?.id);
+      sendProgress("questions", answers, 0, getFirstQuestionOfLogicalStep(questions, 0)?.id);
     }
   }, [config.steps, answers, moveToStep, sendProgress, questions]);
 
@@ -426,7 +428,8 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
             onAnswersChange={setAnswers}
             onStepChange={(idx, answersSoFar) => {
               if (idx > questionIndex) {
-                sendProgress("questions", answersSoFar ?? answers, idx, questions[idx]?.id);
+                const firstQuestion = getFirstQuestionOfLogicalStep(questions, idx);
+                sendProgress("questions", answersSoFar ?? answers, idx, firstQuestion?.id);
               }
               setQuestionIndex(idx);
             }}
@@ -434,6 +437,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
             onBack={handleQuestionsBack}
             stepName="questions"
             textQuestionButtonLabel={config.textQuestionButtonLabel}
+            config={config}
           />
           </>
         )}

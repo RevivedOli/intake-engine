@@ -171,6 +171,18 @@ export function normalizeConfig(raw: unknown): AppConfig {
     defaultThankYouMessage: typeof c.defaultThankYouMessage === "string" ? c.defaultThankYouMessage : undefined,
     textQuestionButtonLabel: typeof c.textQuestionButtonLabel === "string" ? c.textQuestionButtonLabel : undefined,
     cta: c.cta !== undefined && c.cta !== null ? normalizeCta(c.cta) : DEFAULT_CTA,
+    privacyPolicy: (() => {
+      const pp = c.privacyPolicy && typeof c.privacyPolicy === "object" ? (c.privacyPolicy as Record<string, unknown>) : undefined;
+      if (!pp) return undefined;
+      if (pp.mode === "external") {
+        const url = typeof pp.url === "string" ? pp.url.trim() : "";
+        return { mode: "external" as const, url };
+      }
+      const content = typeof pp.content === "string" ? pp.content : "";
+      if ("enabled" in pp && pp.enabled === false && !content) return undefined;
+      return { mode: "internal" as const, content };
+    })(),
+    contactConsentLabel: typeof c.contactConsentLabel === "string" ? c.contactConsentLabel.trim() || undefined : undefined,
   };
 }
 

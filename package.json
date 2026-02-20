@@ -16,10 +16,13 @@
     "@imagekit/react": "^5.0.1",
     "@neondatabase/auth": "^0.2.0-beta.1",
     "@neondatabase/serverless": "^0.10.0",
+    "@tailwindcss/typography": "^0.5.19",
     "imagekit": "^6.0.0",
     "next": "^14.2.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
