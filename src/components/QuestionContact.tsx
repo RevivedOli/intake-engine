@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import type { Question } from "@/types/question";
 import { useTheme } from "@/contexts/ThemeContext";
 
-/** Common country codes for phone input (dial code, label) */
 const COUNTRY_CODES: { code: string; label: string }[] = [
   { code: "+44", label: "UK" },
   { code: "+1", label: "US/CA" },
@@ -41,19 +40,21 @@ const COUNTRY_CODES: { code: string; label: string }[] = [
 function parseTelValue(value: string): { code: string; national: string } {
   const trimmed = (value ?? "").trim();
   if (!trimmed) return { code: "+44", national: "" };
-  const match = trimmed.match(/^(\+\d{1,4})(.*)$/);
-  if (match) {
-    const code = COUNTRY_CODES.some((c) => c.code === match[1]) ? match[1] : "+44";
-    const national = (match[2] ?? "").replace(/\D/g, "");
-    return { code, national };
+  const codesByLength = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+  for (const { code } of codesByLength) {
+    if (trimmed.startsWith(code)) {
+      const national = trimmed.slice(code.length).replace(/\D/g, "");
+      return { code, national };
+    }
   }
-  return { code: "+44", national: trimmed.replace(/\D/g, "") };
+  const digits = trimmed.replace(/\D/g, "");
+  return { code: "+44", national: digits };
 }
 
-function buildE164(code: string, national: string): string {
-  const digits = national.replace(/\D/g, "");
-  if (!digits) return "";
-  return `${code}${digits}`;
+function buildE164(code: string, nationalDigits: string): string {
+  const d = nationalDigits.replace(/\D/g, "");
+  if (!d) return "";
+  return `${code}${d}`;
 }
 
 interface QuestionContactProps {
@@ -82,26 +83,12 @@ export function QuestionContact({
   const primary = theme.primaryColor ?? "#a47f4c";
   const fontFamily = theme.fontFamily ?? "var(--font-sans)";
   const [touched, setTouched] = useState(false);
-  const parsed = useMemo(
-    () => (question.contactKind === "tel" ? parseTelValue(value) : { code: "+44", national: "" }),
-    [question.contactKind, value]
-  );
-  const [telCode, setTelCode] = useState(parsed.code);
-  const [nationalInput, setNationalInput] = useState(parsed.national);
-
   const kind = question.contactKind ?? "email";
   const label = question.label?.trim() || null;
-  const placeholder = question.placeholder?.trim() || (kind === "email" ? "you@example.com" : kind === "tel" ? "Phone Number" : kind === "instagram" ? "@username" : "");
-
+  const placeholder = question.placeholder?.trim() || (kind === "email" ? "you@example.com" : kind === "tel" ? "e.g. 7123456789" : kind === "instagram" ? "@username" : "");
   const isTel = kind === "tel";
-  const telNational = nationalInput;
-  const hasInput = isTel ? telNational.trim().length > 0 : value.trim().length > 0;
-
-  const setTelValue = (code: string, national: string) => {
-    setTelCode(code);
-    setNationalInput(national);
-    onChange(buildE164(code, national));
-  };
+  const parsed = isTel ? parseTelValue(value) : { code: "+44", national: "" };
+  const hasInput = isTel ? parsed.national.length > 0 : value.trim().length > 0;
 
   function validate(): string | null {
     const v = value.trim();
@@ -169,12 +156,12 @@ export function QuestionContact({
             <div
               className="flex items-center gap-2 border-b border-white/30 focus-within:border-white/60 transition-colors pb-1 min-w-0 w-full"
               role="group"
-              aria-label="Phone number with country code"
+              aria-label="Phone number"
             >
               <select
                 id={`contact-${question.id}-cc`}
-                value={telCode}
-                onChange={(e) => setTelValue(e.target.value, telNational)}
+                value={parsed.code}
+                onChange={(e) => onChange(buildE164(e.target.value, parsed.national))}
                 className="shrink-0 min-w-0 max-w-[5.5rem] pl-0 pr-2 sm:pr-3 py-2.5 bg-transparent border-0 border-r border-white/20 text-white/90 focus:outline-none focus:ring-0 cursor-pointer text-sm sm:text-base"
                 aria-label="Country code"
               >
@@ -188,9 +175,10 @@ export function QuestionContact({
                 id={`contact-${question.id}`}
                 type="tel"
                 inputMode="numeric"
+                pattern="[0-9]*"
                 autoComplete="tel-national"
-                value={telNational}
-                onChange={(e) => setTelValue(telCode, e.target.value)}
+                value={parsed.national}
+                onChange={(e) => onChange(buildE164(parsed.code, e.target.value))}
                 onFocus={scrollInputAboveKeyboard}
                 onBlur={() => setTouched(true)}
                 placeholder={placeholder}

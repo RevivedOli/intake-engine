@@ -13,6 +13,8 @@ import { QuestionsPreview } from "../tenants/[id]/QuestionsPreview";
 import { QuestionsFormFields } from "../tenants/[id]/QuestionsFormFields";
 import { CTAFormFields } from "../tenants/[id]/CTAFormFields";
 import { CTAPreview } from "../tenants/[id]/CTAPreview";
+import { PrivacyPolicyFormFields } from "../tenants/[id]/PrivacyPolicyFormFields";
+import { PrivacyPolicyPreview } from "../tenants/[id]/PrivacyPolicyPreview";
 
 const TOAST_DURATION_MS = 3000;
 const REDIRECT_DELAY_MS = 1500;
@@ -44,7 +46,7 @@ export function NewTenantForm() {
   const [error, setError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"config" | "questions" | "cta">("config");
+  const [activeTab, setActiveTab] = useState<"config" | "questions" | "cta" | "privacy">("config");
   const [config, setConfig] = useState<AppConfig>(INITIAL_CONFIG);
   const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
 
@@ -205,6 +207,17 @@ export function NewTenantForm() {
               >
                 CTA
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("privacy")}
+                className={`px-4 py-2 text-sm font-medium rounded-t -mb-px ${
+                  activeTab === "privacy"
+                    ? "bg-zinc-700 text-white border border-zinc-600 border-b-0"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                Privacy Policy
+              </button>
             </div>
 
             {activeTab === "config" && (
@@ -215,6 +228,9 @@ export function NewTenantForm() {
             )}
             {activeTab === "cta" && (
               <CTAFormFields config={config} onChange={setConfig} />
+            )}
+            {activeTab === "privacy" && (
+              <PrivacyPolicyFormFields config={config} onChange={setConfig} />
             )}
           </div>
 
@@ -252,6 +268,13 @@ export function NewTenantForm() {
           <div className="xl:w-[360px] xl:shrink-0">
             <div className="xl:sticky xl:top-4">
               <CTAPreview config={config} />
+            </div>
+          </div>
+        )}
+        {activeTab === "privacy" && (
+          <div className="xl:w-[360px] xl:shrink-0">
+            <div className="xl:sticky xl:top-4">
+              <PrivacyPolicyPreview config={config} />
             </div>
           </div>
         )}

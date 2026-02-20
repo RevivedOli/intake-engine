@@ -2,11 +2,15 @@
 
 import { useEffect } from "react";
 import type { Question } from "@/types";
+import type { AppConfig } from "@/types/config";
 import { QuestionSingle } from "./QuestionSingle";
 import { QuestionMulti } from "./QuestionMulti";
 import { QuestionText } from "./QuestionText";
 import { QuestionContact } from "./QuestionContact";
+import { QuestionContactBlock } from "./QuestionContactBlock";
 import { Progress } from "./Progress";
+import { computeLogicalSteps, type LogicalStep } from "@/lib/logical-steps";
+import { getPrivacyPolicyLink, isConsentRequired, getContactConsentLabel } from "@/lib/privacy-policy";
 
 interface QuestionFlowProps {
   questions: Question[];
@@ -19,6 +23,8 @@ interface QuestionFlowProps {
   stepName: string;
   /** Button label for text-type and contact-type questions (default "OK" / "Next") */
   textQuestionButtonLabel?: string;
+  /** App config (for privacy policy link, consent) */
+  config?: AppConfig;
 }
 
 export function QuestionFlow({
@@ -31,10 +37,13 @@ export function QuestionFlow({
   onBack,
   stepName,
   textQuestionButtonLabel,
+  config,
 }: QuestionFlowProps) {
   if (questions.length === 0) return null;
-  const question = questions[currentIndex];
-  if (!question) return null;
+
+  const logicalSteps = computeLogicalSteps(questions);
+  const currentStep = logicalSteps[currentIndex] as LogicalStep | undefined;
+  if (!currentStep) return null;
 
   const setAnswer = (id: string, value: string | string[]) => {
     onAnswersChange({ ...answers, [id]: value });
@@ -42,7 +51,7 @@ export function QuestionFlow({
 
   const goNext = (answersWithCurrent?: Record<string, string | string[]>) => {
     const next = answersWithCurrent ?? answers;
-    if (currentIndex < questions.length - 1) {
+    if (currentIndex < logicalSteps.length - 1) {
       onStepChange(currentIndex + 1, next);
     } else {
       onComplete(next);
@@ -57,8 +66,12 @@ export function QuestionFlow({
     }
   };
 
-  // Preload next question's image so it's cached when user advances
-  const nextImageUrl = questions[currentIndex + 1]?.imageUrl?.trim();
+  const isContactBlock = Array.isArray(currentStep);
+
+  const nextStep = logicalSteps[currentIndex + 1];
+  const nextFirstQuestion = Array.isArray(nextStep) ? nextStep[0] : nextStep;
+  const nextImageUrl = nextFirstQuestion?.imageUrl?.trim();
+
   useEffect(() => {
     if (typeof document === "undefined") return;
     if (!nextImageUrl) {
@@ -77,63 +90,80 @@ export function QuestionFlow({
     return () => link.remove();
   }, [nextImageUrl]);
 
-  const progressLabel = `Question ${currentIndex + 1} of ${questions.length}`;
+  const progressLabel = `Question ${currentIndex + 1} of ${logicalSteps.length}`;
 
   return (
     <div className="min-h-screen flex flex-col p-6 sm:p-8">
       <div className="mb-6 max-w-xl mx-auto w-full">
         <Progress
           current={currentIndex + 1}
-          total={questions.length}
+          total={logicalSteps.length}
           label={progressLabel}
         />
       </div>
       <div className="flex-1 flex flex-col justify-start pt-4 sm:justify-center sm:pt-0">
-        {question.type === "single" && (
-          <QuestionSingle
-            key={question.id}
-            question={question}
+        {isContactBlock ? (
+          <QuestionContactBlock
+            key={currentStep.map((q) => q.id).join("-")}
+            questions={currentStep}
             answers={answers}
-            value={(answers[question.id] as string) ?? null}
-            onChange={(v) => setAnswer(question.id, v)}
+            onAnswersChange={onAnswersChange}
             onNext={goNext}
-            required
+            submitButtonLabel={currentStep[0]?.submitButtonLabel ?? textQuestionButtonLabel ?? "Next"}
+            privacyPolicyLink={getPrivacyPolicyLink(config)}
+            consentRequired={isConsentRequired(config)}
+            consentLabel={getContactConsentLabel(config)}
           />
-        )}
-        {question.type === "multi" && (
-          <QuestionMulti
-            key={question.id}
-            question={question}
-            answers={answers}
-            value={((answers[question.id] as string[]) ?? []) as string[]}
-            onChange={(v) => setAnswer(question.id, v)}
-            onNext={goNext}
-            required
-          />
-        )}
-        {question.type === "text" && (
-          <QuestionText
-            key={question.id}
-            question={question}
-            answers={answers}
-            value={(answers[question.id] as string) ?? ""}
-            onChange={(v) => setAnswer(question.id, v)}
-            onNext={goNext}
-            required
-            submitButtonLabel={question.submitButtonLabel ?? textQuestionButtonLabel}
-          />
-        )}
-        {question.type === "contact" && (
-          <QuestionContact
-            key={question.id}
-            question={question}
-            answers={answers}
-            value={(answers[question.id] as string) ?? ""}
-            onChange={(v) => setAnswer(question.id, v)}
-            onNext={goNext}
-            required={question.required !== false}
-            submitButtonLabel={question.submitButtonLabel ?? textQuestionButtonLabel ?? "Next"}
-          />
+        ) : (
+          <>
+            {currentStep.type === "single" && (
+              <QuestionSingle
+                key={currentStep.id}
+                question={currentStep}
+                answers={answers}
+                value={(answers[currentStep.id] as string) ?? null}
+                onChange={(v) => setAnswer(currentStep.id, v)}
+                onNext={goNext}
+                required
+              />
+            )}
+            {currentStep.type === "multi" && (
+              <QuestionMulti
+                key={currentStep.id}
+                question={currentStep}
+                answers={answers}
+                value={((answers[currentStep.id] as string[]) ?? []) as string[]}
+                onChange={(v) => setAnswer(currentStep.id, v)}
+                onNext={goNext}
+                required
+              />
+            )}
+            {currentStep.type === "text" && (
+              <QuestionText
+                key={currentStep.id}
+                question={currentStep}
+                answers={answers}
+                value={(answers[currentStep.id] as string) ?? ""}
+                onChange={(v) => setAnswer(currentStep.id, v)}
+                onNext={goNext}
+                required
+                submitButtonLabel={currentStep.submitButtonLabel ?? textQuestionButtonLabel}
+              />
+            )}
+            {currentStep.type === "contact" && (
+              <QuestionContact
+                key={currentStep.id}
+                question={currentStep}
+                answers={answers}
+                value={(answers[currentStep.id] as string) ?? ""}
+                onChange={(v) => setAnswer(currentStep.id, v)}
+                onNext={goNext}
+                required={currentStep.required !== false}
+                submitButtonLabel={currentStep.submitButtonLabel ?? textQuestionButtonLabel ?? "Next"
+                }
+              />
+            )}
+          </>
         )}
       </div>
       <div className="mt-8 max-w-xl mx-auto w-full flex justify-between items-center">
