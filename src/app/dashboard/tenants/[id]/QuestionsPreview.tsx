@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AppConfig } from "@/types/config";
 import type { Question } from "@/types/question";
+import { getPrivacyPolicyLink, isConsentRequired, getContactConsentLabel } from "@/lib/privacy-policy";
 
 const WIDTH_OPTIONS = [
   { value: 320, label: "320px" },
@@ -28,6 +29,9 @@ function QuestionPreviewCard({
   textButtonLabel,
   previewContactValue,
   onPreviewContactChange,
+  config,
+  questions,
+  currentIndex,
 }: {
   question: Question;
   primary: string;
@@ -35,6 +39,9 @@ function QuestionPreviewCard({
   textButtonLabel: string;
   previewContactValue?: string;
   onPreviewContactChange?: (value: string) => void;
+  config?: AppConfig;
+  questions?: Question[];
+  currentIndex?: number;
 }) {
   const options = question.options ?? [];
   const isSingle = question.type === "single";
@@ -111,7 +118,13 @@ function QuestionPreviewCard({
           </div>
         </div>
       )}
-      {isContact && (
+      {isContact && (() => {
+        const showConsentHere = config && isConsentRequired(config) && getPrivacyPolicyLink(config) &&
+          question.showConsentUnder;
+        const consentLabel = config ? getContactConsentLabel(config) : "I agree to the Privacy Policy.";
+        const privacyLink = config ? getPrivacyPolicyLink(config) : null;
+
+        return (
         <div className="mt-3 w-full">
           {question.label?.trim() && (
             <p className="text-white/70 text-xs mb-1">
@@ -173,8 +186,26 @@ function QuestionPreviewCard({
               </span>
             </div>
           )}
+          {showConsentHere && (
+            <div className="mt-4 flex items-start gap-2">
+              <span className="shrink-0 w-4 h-4 rounded border border-white/30 bg-white/10 mt-0.5" aria-hidden />
+              <span className="text-white/70 text-xs">
+                {privacyLink && consentLabel.includes("Privacy Policy")
+                  ? consentLabel.split("Privacy Policy").map((part, i) => (
+                      <span key={i}>
+                        {part}
+                        {i < consentLabel.split("Privacy Policy").length - 1 && (
+                          <span className="text-amber-400 underline">Privacy Policy</span>
+                        )}
+                      </span>
+                    ))
+                  : consentLabel}
+              </span>
+            </div>
+          )}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -268,6 +299,9 @@ export function QuestionsPreview({
             primary={primary}
             fontFamily={fontFamily}
             textButtonLabel={textButtonLabel}
+            config={config}
+            questions={questions}
+            currentIndex={safeIndex}
           />
         ) : (
           <p className="text-white/50 text-sm text-center px-4 py-8">

@@ -6,9 +6,11 @@ import { useTheme } from "@/contexts/ThemeContext";
 interface HeroProps {
   config: HeroConfig;
   onStart: () => void;
+  /** When true, use min-h-full to fill the container (e.g. when announcement banner reduces viewport) */
+  fillContainer?: boolean;
 }
 
-export function Hero({ config, onStart }: HeroProps) {
+export function Hero({ config, onStart, fillContainer }: HeroProps) {
   const theme = useTheme();
   const bg = theme.background ?? "#1a2e28";
   const primary = theme.primaryColor ?? "#a47f4c";
@@ -17,8 +19,9 @@ export function Hero({ config, onStart }: HeroProps) {
   const isCentered = layout === "centered" || layout === "full-width";
   const isLeft = layout === "left";
 
+  const minHeightClass = fillContainer ? "min-h-full" : "min-h-screen";
   const outerClasses = [
-    "min-h-screen flex flex-col p-6 sm:p-8 transition-opacity duration-300 animate-fade-in",
+    `${minHeightClass} flex flex-col p-6 sm:p-8 transition-opacity duration-300 animate-fade-in`,
     isCentered ? "items-center justify-center" : isLeft ? "items-start justify-center" : "items-center justify-center",
   ].join(" ");
 

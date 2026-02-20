@@ -1,4 +1,5 @@
 import type {
+  AnnouncementConfig,
   AppConfig,
   CtaConfig,
   CtaMultiChoiceOption,
@@ -137,7 +138,21 @@ function normalizeCta(raw: unknown): CtaConfig {
     subheading: typeof c.subheading === "string" ? c.subheading : undefined,
     prompt: typeof c.prompt === "string" ? c.prompt : undefined,
     imageUrl: typeof c.imageUrl === "string" ? c.imageUrl : undefined,
+    showPreviewOnContactStep: c.showPreviewOnContactStep === true ? true : undefined,
+    freebiePreviewPrompt: typeof c.freebiePreviewPrompt === "string" ? c.freebiePreviewPrompt : undefined,
     options: options.length ? options : [{ id: "opt_1", label: "Option 1", kind: "embed_video", variant: "direct", videoUrl: "" }],
+  };
+}
+
+function normalizeAnnouncement(raw: unknown): AnnouncementConfig | undefined {
+  const a = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : undefined;
+  if (!a) return undefined;
+  return {
+    enabled: Boolean(a.enabled),
+    message: typeof a.message === "string" ? a.message : "Sale now",
+    backgroundColor: typeof a.backgroundColor === "string" ? a.backgroundColor : "#c41e3a",
+    textColor: typeof a.textColor === "string" ? a.textColor : "#ffffff",
+    scope: a.scope === "full" ? "full" : "hero",
   };
 }
 
@@ -183,6 +198,7 @@ export function normalizeConfig(raw: unknown): AppConfig {
       return { mode: "internal" as const, content };
     })(),
     contactConsentLabel: typeof c.contactConsentLabel === "string" ? c.contactConsentLabel.trim() || undefined : undefined,
+    announcement: c.announcement != null ? normalizeAnnouncement(c.announcement) : undefined,
   };
 }
 
@@ -200,6 +216,7 @@ export function normalizeQuestions(raw: unknown): Question[] {
     const label = typeof x.label === "string" ? x.label : undefined;
     const placeholder = typeof x.placeholder === "string" ? x.placeholder : undefined;
     const required = type === "contact" ? (x.required !== undefined ? Boolean(x.required) : true) : undefined;
+    const showConsentUnder = type === "contact" && x.showConsentUnder === true;
     return {
       id,
       type,
@@ -207,7 +224,7 @@ export function normalizeQuestions(raw: unknown): Question[] {
       ...((type === "single" || type === "multi") ? { options } : {}),
       ...(imageUrl ? { imageUrl } : {}),
       ...(submitButtonLabel ? { submitButtonLabel } : {}),
-      ...(type === "contact" ? { contactKind: contactKind ?? "email", label, placeholder, required } : {}),
+      ...(type === "contact" ? { contactKind: contactKind ?? "email", label, placeholder, required, showConsentUnder: showConsentUnder || undefined } : {}),
     };
   });
 }

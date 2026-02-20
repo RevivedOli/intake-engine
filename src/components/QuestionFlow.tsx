@@ -18,13 +18,15 @@ interface QuestionFlowProps {
   currentIndex: number;
   onAnswersChange: (answers: Record<string, string | string[]>) => void;
   onStepChange: (index: number, answersSoFar?: Record<string, string | string[]>) => void;
-  onComplete: (answersSoFar?: Record<string, string | string[]>) => void;
+  onComplete: (answersSoFar?: Record<string, string | string[]>, opts?: { consentGiven?: boolean }) => void;
   onBack: () => void;
   stepName: string;
   /** Button label for text-type and contact-type questions (default "OK" / "Next") */
   textQuestionButtonLabel?: string;
   /** App config (for privacy policy link, consent) */
   config?: AppConfig;
+  /** When true, use min-h-full to fill the container (e.g. when announcement banner reduces viewport) */
+  fillContainer?: boolean;
 }
 
 export function QuestionFlow({
@@ -38,6 +40,7 @@ export function QuestionFlow({
   stepName,
   textQuestionButtonLabel,
   config,
+  fillContainer,
 }: QuestionFlowProps) {
   if (questions.length === 0) return null;
 
@@ -49,12 +52,15 @@ export function QuestionFlow({
     onAnswersChange({ ...answers, [id]: value });
   };
 
-  const goNext = (answersWithCurrent?: Record<string, string | string[]>) => {
+  const goNext = (
+    answersWithCurrent?: Record<string, string | string[]>,
+    opts?: { consentGiven?: boolean }
+  ) => {
     const next = answersWithCurrent ?? answers;
     if (currentIndex < logicalSteps.length - 1) {
       onStepChange(currentIndex + 1, next);
     } else {
-      onComplete(next);
+      onComplete(next, opts);
     }
   };
 
@@ -67,6 +73,22 @@ export function QuestionFlow({
   };
 
   const isContactBlock = Array.isArray(currentStep);
+  const isLastStep = currentIndex === logicalSteps.length - 1;
+  const cta = config?.cta;
+  const freebiePreview =
+    isContactBlock &&
+    isLastStep &&
+    cta?.type === "multi_choice" &&
+    cta.showPreviewOnContactStep &&
+    (cta.options?.length ?? 0) > 0
+      ? {
+          prompt:
+            cta.freebiePreviewPrompt?.trim() ||
+            cta.prompt?.trim() ||
+            "Choose your freebie after submitting",
+          options: (cta.options ?? []).map((o) => ({ id: o.id, label: o.label })),
+        }
+      : undefined;
 
   const nextStep = logicalSteps[currentIndex + 1];
   const nextFirstQuestion = Array.isArray(nextStep) ? nextStep[0] : nextStep;
@@ -92,8 +114,9 @@ export function QuestionFlow({
 
   const progressLabel = `Question ${currentIndex + 1} of ${logicalSteps.length}`;
 
+  const minHeightClass = fillContainer ? "min-h-full" : "min-h-screen";
   return (
-    <div className="min-h-screen flex flex-col p-6 sm:p-8">
+    <div className={`${minHeightClass} flex flex-col p-6 sm:p-8`}>
       <div className="mb-6 max-w-xl mx-auto w-full">
         <Progress
           current={currentIndex + 1}
@@ -113,6 +136,7 @@ export function QuestionFlow({
             privacyPolicyLink={getPrivacyPolicyLink(config)}
             consentRequired={isConsentRequired(config)}
             consentLabel={getContactConsentLabel(config)}
+            freebiePreview={freebiePreview}
           />
         ) : (
           <>
