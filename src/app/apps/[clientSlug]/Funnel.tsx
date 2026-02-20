@@ -463,7 +463,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
         )}
         <div className={showAnnouncement ? "flex-1 min-h-0 overflow-hidden flex flex-col" : undefined}>
           {step === "hero" && config.hero && (
-            <Hero config={config.hero} onStart={handleStart} fillContainer={showAnnouncement} />
+            <Hero config={config.hero} onStart={handleStart} fillContainer={!!showAnnouncement} />
           )}
 
           {step === "questions" && questions.length > 0 && (
@@ -497,7 +497,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
                 stepName="questions"
                 textQuestionButtonLabel={config.textQuestionButtonLabel}
                 config={config}
-                fillContainer={showAnnouncement}
+                fillContainer={!!showAnnouncement}
               />
             </>
           )}
@@ -511,7 +511,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
               onSelectOption={config.cta?.type === "multi_choice" ? handleSelectOption : undefined}
               onSelectSubChoice={config.cta?.type === "multi_choice" ? handleSelectSubChoice : undefined}
               defaultThankYouMessage={config.defaultThankYouMessage}
-              fillContainer={showAnnouncement}
+              fillContainer={!!showAnnouncement}
             />
           )}
         </div>
