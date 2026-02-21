@@ -169,13 +169,15 @@ export async function POST(request: NextRequest) {
       // User clicked a "webhook then message" CTA option: send to n8n with tag (optional override URL)
       if (targetUrl) {
         const tagPayload = { ...payload, cta_tag: ctaAction.cta_tag };
+        const appId = payload.app_id;
+        const ctaTag = ctaAction.cta_tag;
         console.log(
-          `[intake] CTA webhook forwarded app_id=${payload.app_id} cta_tag=${ctaAction.cta_tag}`
+          `[intake] CTA webhook forwarded app_id=${appId} cta_tag=${ctaTag}`
         );
         forwardToN8nWithUrl(targetUrl, tagPayload).catch((err) => {
           const msg = err instanceof Error ? err.message : String(err);
           console.error(
-            `[intake] CTA webhook failed app_id=${payload.app_id} cta_tag=${ctaAction.cta_tag} error=${msg}`
+            `[intake] CTA webhook failed app_id=${appId} cta_tag=${ctaTag} error=${msg}`
           );
         });
       }
@@ -184,11 +186,12 @@ export async function POST(request: NextRequest) {
 
     // Initial form submit: fire-and-forget main webhook
     if (webhookUrl) {
-      console.log(`[intake] Submit forwarded app_id=${payload.app_id}`);
+      const appId = payload.app_id;
+      console.log(`[intake] Submit forwarded app_id=${appId}`);
       forwardToN8n(payload).catch((err) => {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(
-          `[intake] Submit webhook failed app_id=${payload.app_id} error=${msg}`
+          `[intake] Submit webhook failed app_id=${appId} error=${msg}`
         );
       });
     } else {
