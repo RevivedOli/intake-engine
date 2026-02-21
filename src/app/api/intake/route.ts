@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenantById } from "@/lib/db";
-import { forwardToN8n, forwardToN8nWithUrl, getWebhookUrl } from "@/api/n8n";
+import { forwardToN8nWithUrl, getWebhookUrl } from "@/api/n8n";
 import { contactKindToPayloadKey } from "@/lib/contact-payload";
 import { isConsentRequired, getPrivacyPolicyLink } from "@/lib/privacy-policy";
 import type { IntakeRequest, Question } from "@/types";
@@ -45,6 +45,16 @@ function parseCtaAction(body: unknown): { cta_tag: string; cta_webhook_url?: str
     cta_tag: o.cta_tag.trim(),
     cta_webhook_url: typeof o.cta_webhook_url === "string" && o.cta_webhook_url.trim() ? o.cta_webhook_url.trim() : undefined,
   };
+}
+
+/** Forwards payload to webhook URL; awaits so serverless keeps running until send completes. */
+async function forwardPayloadToWebhook(
+  url: string,
+  payload: IntakeRequest,
+  opts?: { ctaTag?: string }
+): Promise<void> {
+  const p = opts?.ctaTag ? { ...payload, cta_tag: opts.ctaTag } : payload;
+  await forwardToN8nWithUrl(url, p);
 }
 
 function validateContact(
@@ -147,53 +157,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const webhookUrl = getWebhookUrl();
+
     if (payload.event === "progress") {
-      const webhookUrl = getWebhookUrl();
       if (!webhookUrl) {
         console.log(
           `[intake] Progress skipped (no webhook URL) app_id=${payload.app_id}`
         );
         return NextResponse.json({ ok: true });
       }
-      await forwardToN8n(payload);
+      await forwardPayloadToWebhook(webhookUrl, payload);
       console.log(`[intake] Progress forwarded app_id=${payload.app_id}`);
       return NextResponse.json({ ok: true });
     }
 
-    // --- submit: fire-and-forget to n8n, always return useCtaConfig so client shows CTA from config ---
+    // --- submit: await forward so serverless keeps running until n8n receives it ---
     const ctaAction = parseCtaAction(body);
-    const webhookUrl = getWebhookUrl();
     const targetUrl = ctaAction?.cta_webhook_url || webhookUrl;
 
     if (ctaAction) {
-      // User clicked a "webhook then message" CTA option: send to n8n with tag (optional override URL)
       if (targetUrl) {
-        const tagPayload = { ...payload, cta_tag: ctaAction.cta_tag };
         const appId = payload.app_id;
         const ctaTag = ctaAction.cta_tag;
         console.log(
+          `[intake] CTA webhook forwarding app_id=${appId} cta_tag=${ctaTag}`
+        );
+        await forwardPayloadToWebhook(targetUrl, payload, { ctaTag });
+        console.log(
           `[intake] CTA webhook forwarded app_id=${appId} cta_tag=${ctaTag}`
         );
-        forwardToN8nWithUrl(targetUrl, tagPayload).catch((err) => {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error(
-            `[intake] CTA webhook failed app_id=${appId} cta_tag=${ctaTag} error=${msg}`
-          );
-        });
       }
       return NextResponse.json({ ok: true });
     }
 
-    // Initial form submit: fire-and-forget main webhook
+    // Initial form submit: await main webhook
     if (webhookUrl) {
       const appId = payload.app_id;
+      console.log(`[intake] Submit forwarding app_id=${appId}`);
+      await forwardPayloadToWebhook(webhookUrl, payload);
       console.log(`[intake] Submit forwarded app_id=${appId}`);
-      forwardToN8n(payload).catch((err) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(
-          `[intake] Submit webhook failed app_id=${appId} error=${msg}`
-        );
-      });
     } else {
       console.log(
         `[intake] Submit skipped (no webhook URL) app_id=${payload.app_id}`
