@@ -84,6 +84,9 @@ interface QuestionContactBlockProps {
   consentLabel?: string;
   /** Greyed-out preview of freebie options shown below contact form */
   freebiePreview?: { prompt?: string; options: FreebiePreviewOption[] };
+  /** Controlled consent checked state so it persists when user types (avoids unchecked on re-render) */
+  consentChecked?: boolean;
+  onConsentChange?: (checked: boolean) => void;
 }
 
 export function QuestionContactBlock({
@@ -96,12 +99,18 @@ export function QuestionContactBlock({
   consentRequired = false,
   consentLabel = "I agree to share my information in accordance with the Privacy Policy.",
   freebiePreview,
+  consentChecked: consentCheckedProp,
+  onConsentChange,
 }: QuestionContactBlockProps) {
   const theme = useTheme();
   const primary = theme.primaryColor ?? "#a47f4c";
   const fontFamily = theme.fontFamily ?? "var(--font-sans)";
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [consentChecked, setConsentChecked] = useState(false);
+  const [consentCheckedInternal, setConsentCheckedInternal] = useState(false);
+
+  const isControlled = consentCheckedProp !== undefined && onConsentChange !== undefined;
+  const consentChecked = isControlled ? consentCheckedProp : consentCheckedInternal;
+  const setConsentChecked = isControlled ? onConsentChange : setConsentCheckedInternal;
 
   const hasConsentPlacement = questions.some((q) => q.showConsentUnder);
   const showConsent = consentRequired && privacyPolicyLink && hasConsentPlacement;
@@ -140,7 +149,9 @@ export function QuestionContactBlock({
       canSubmit = false;
     }
   }
-  // Allow submit even without consent; we pass consentGiven so API can send "hidden" for contact fields
+  if (showConsent && !consentChecked) {
+    canSubmit = false;
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -232,6 +243,17 @@ export function QuestionContactBlock({
           ))}
         </div>
 
+        <div className="mt-6 flex justify-center">
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="px-6 py-2.5 rounded-full font-medium text-white focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            style={{ backgroundColor: primary }}
+          >
+            {submitButtonLabel}
+          </button>
+        </div>
+
         {freebiePreview && freebiePreview.options.length > 0 && (
           <div className="mt-6">
             {freebiePreview.prompt?.trim() && (
@@ -267,17 +289,6 @@ export function QuestionContactBlock({
             </div>
           </div>
         )}
-
-        <div className="mt-6 flex justify-end">
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="px-6 py-2.5 rounded-full font-medium text-white focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-            style={{ backgroundColor: primary }}
-          >
-            {submitButtonLabel}
-          </button>
-        </div>
       </form>
     </div>
   );

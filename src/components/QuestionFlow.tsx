@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Question } from "@/types";
 import type { AppConfig } from "@/types/config";
 import { QuestionSingle } from "./QuestionSingle";
@@ -42,6 +42,8 @@ export function QuestionFlow({
   config,
   fillContainer,
 }: QuestionFlowProps) {
+  const [consentCheckedByStep, setConsentCheckedByStep] = useState<Record<number, boolean>>({});
+
   if (questions.length === 0) return null;
 
   const logicalSteps = computeLogicalSteps(questions);
@@ -137,6 +139,10 @@ export function QuestionFlow({
             consentRequired={isConsentRequired(config)}
             consentLabel={getContactConsentLabel(config)}
             freebiePreview={freebiePreview}
+            consentChecked={consentCheckedByStep[currentIndex] ?? false}
+            onConsentChange={(checked) =>
+              setConsentCheckedByStep((prev) => ({ ...prev, [currentIndex]: checked }))
+            }
           />
         ) : (
           <>
