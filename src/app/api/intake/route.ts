@@ -82,18 +82,29 @@ function validateContact(
 }
 
 export async function POST(request: NextRequest) {
+  let payload: IntakeRequest | null = null;
   try {
     const body = await request.json();
-    const payload = parseBody(body);
+    payload = parseBody(body);
     if (!payload) {
+      const o = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+      console.error(
+        "[intake] Parse failed app_id=",
+        typeof o.app_id === "string" ? o.app_id : "?"
+      );
       return NextResponse.json(
         { error: "validation_failed", message: "Invalid request body" },
         { status: 400 }
       );
     }
 
+    console.log(
+      `[intake] Received event=${payload.event} app_id=${payload.app_id}`
+    );
+
     const tenant = await getTenantById(payload.app_id);
     if (!tenant) {
+      console.error(`[intake] Tenant not found app_id=${payload.app_id}`);
       return NextResponse.json(
         { error: "validation_failed", message: "Unknown app_id" },
         { status: 400 }
@@ -126,6 +137,9 @@ export async function POST(request: NextRequest) {
         contactFieldsFromQuestions
       );
       if (!validation.ok) {
+        console.error(
+          `[intake] Contact validation failed app_id=${payload.app_id} message=${validation.message}`
+        );
         return NextResponse.json(
           { error: "validation_failed", message: validation.message },
           { status: 400 }
@@ -136,9 +150,13 @@ export async function POST(request: NextRequest) {
     if (payload.event === "progress") {
       const webhookUrl = getWebhookUrl();
       if (!webhookUrl) {
+        console.log(
+          `[intake] Progress skipped (no webhook URL) app_id=${payload.app_id}`
+        );
         return NextResponse.json({ ok: true });
       }
       await forwardToN8n(payload);
+      console.log(`[intake] Progress forwarded app_id=${payload.app_id}`);
       return NextResponse.json({ ok: true });
     }
 
@@ -151,8 +169,14 @@ export async function POST(request: NextRequest) {
       // User clicked a "webhook then message" CTA option: send to n8n with tag (optional override URL)
       if (targetUrl) {
         const tagPayload = { ...payload, cta_tag: ctaAction.cta_tag };
+        console.log(
+          `[intake] CTA webhook forwarded app_id=${payload.app_id} cta_tag=${ctaAction.cta_tag}`
+        );
         forwardToN8nWithUrl(targetUrl, tagPayload).catch((err) => {
-          console.error("[intake] CTA webhook (tag) failed:", err);
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(
+            `[intake] CTA webhook failed app_id=${payload.app_id} cta_tag=${ctaAction.cta_tag} error=${msg}`
+          );
         });
       }
       return NextResponse.json({ ok: true });
@@ -160,13 +184,26 @@ export async function POST(request: NextRequest) {
 
     // Initial form submit: fire-and-forget main webhook
     if (webhookUrl) {
+      console.log(`[intake] Submit forwarded app_id=${payload.app_id}`);
       forwardToN8n(payload).catch((err) => {
-        console.error("[intake] Submit webhook failed:", err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(
+          `[intake] Submit webhook failed app_id=${payload.app_id} error=${msg}`
+        );
       });
+    } else {
+      console.log(
+        `[intake] Submit skipped (no webhook URL) app_id=${payload.app_id}`
+      );
     }
     return NextResponse.json({ ok: true, useCtaConfig: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Request to n8n failed";
+    const appId = payload?.app_id ?? "?";
+    const event = payload?.event ?? "?";
+    console.error(
+      `[intake] Error app_id=${appId} event=${event} error=${message}`
+    );
     const isTimeout = message.includes("timeout") || message.includes("aborted");
     return NextResponse.json(
       { error: "webhook_unavailable", message: isTimeout ? "Request timed out. Please try again." : "Request failed. Please try again." },
