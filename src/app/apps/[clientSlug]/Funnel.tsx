@@ -129,6 +129,8 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
   const [submitting, setSubmitting] = useState(false);
   /** Set when user submits contact form; used to mask contact in CTA webhooks if consent wasn't given */
   const [consentGivenAtSubmit, setConsentGivenAtSubmit] = useState<boolean | null>(null);
+  /** Set when user gives consent at any step; never reset; used to include consent_given in progress and submit */
+  const [consentGivenEver, setConsentGivenEver] = useState(false);
 
   // When on Hero, preload first question image so it's ready when user clicks Start
   useEffect(() => {
@@ -232,23 +234,26 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
       answersSoFar: Record<string, string | string[]>,
       questionIndex?: number,
       questionId?: string,
-      stepQuestion?: string
+      stepQuestion?: string,
+      consentGiven?: boolean
     ) => {
       try {
         const contactSoFar = deriveContactFromAnswers(questions, answersSoFar);
+        const body = buildPayload("progress", {
+          step: stepName,
+          answers: answersSoFar,
+          contact: contactSoFar,
+          question_index: questionIndex,
+          question_id: questionId,
+          step_question: stepQuestion,
+        });
+        if (consentGiven) {
+          (body as Record<string, unknown>).consent_given = true;
+        }
         await fetch("/api/intake", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            buildPayload("progress", {
-              step: stepName,
-              answers: answersSoFar,
-              contact: contactSoFar,
-              question_index: questionIndex,
-              question_id: questionId,
-              step_question: stepQuestion,
-            })
-          ),
+          body: JSON.stringify(body),
         });
       } catch {
         // non-blocking
@@ -262,12 +267,12 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
       const prevStep = config.steps[stepIndex];
       // Skip hero progress when moving to questions; handleStart sends the "reached first question" progress
       if (prevStep && !(prevStep === "hero" && nextStep === "questions")) {
-        sendProgress(prevStep, answersSoFar);
+        sendProgress(prevStep, answersSoFar, undefined, undefined, undefined, consentGivenEver);
       }
       setStep(nextStep);
       setStepIndex(nextIndex);
     },
-    [config.steps, stepIndex, sendProgress]
+    [config.steps, stepIndex, sendProgress, consentGivenEver]
   );
 
   const handleStart = useCallback(() => {
@@ -276,9 +281,9 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
       setQuestionIndex(0);
       moveToStep("questions", idx, answers);
       const firstQ = getFirstQuestionOfLogicalStep(questions, 0);
-      sendProgress("questions", answers, 0, firstQ?.id, firstQ?.question);
+      sendProgress("questions", answers, 0, firstQ?.id, firstQ?.question, consentGivenEver);
     }
-  }, [config.steps, answers, moveToStep, sendProgress, questions]);
+  }, [config.steps, answers, moveToStep, sendProgress, questions, consentGivenEver]);
 
   const handleQuestionsBack = useCallback(() => {
     if (questionIndex > 0) {
@@ -315,9 +320,16 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
           question_id: lastQ?.id,
           step_question: lastQ?.question,
         });
-        if (typeof opts?.consentGiven === "boolean") {
-          (body as Record<string, unknown>).consent_given = opts.consentGiven;
-          setConsentGivenAtSubmit(opts.consentGiven);
+        if (opts?.consentGiven === true) {
+          setConsentGivenEver(true);
+        }
+        const consentToSend = consentGivenEver || opts?.consentGiven === true;
+        if (consentToSend) {
+          (body as Record<string, unknown>).consent_given = true;
+          setConsentGivenAtSubmit(true);
+        } else if (typeof opts?.consentGiven === "boolean") {
+          (body as Record<string, unknown>).consent_given = false;
+          setConsentGivenAtSubmit(false);
         } else {
           setConsentGivenAtSubmit(true);
         }
@@ -341,7 +353,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
         setSubmitting(false);
       }
     },
-    [config.steps, answers, questions, buildPayload]
+    [config.steps, answers, questions, buildPayload, consentGivenEver]
   );
 
   const resolveCtaViewFromOption = useCallback((option: CtaMultiChoiceOption): CtaResolvedView | null => {
@@ -397,7 +409,11 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
             ...buildPayload("submit"),
             cta_tag: option.webhookTag,
             ...(option.webhookUrl ? { cta_webhook_url: option.webhookUrl } : {}),
-            ...(typeof consentGivenAtSubmit === "boolean" ? { consent_given: consentGivenAtSubmit } : {}),
+            ...(typeof consentGivenAtSubmit === "boolean"
+              ? { consent_given: consentGivenAtSubmit }
+              : consentGivenEver
+                ? { consent_given: true }
+                : {}),
           };
           await fetch("/api/intake", {
             method: "POST",
@@ -416,7 +432,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
         setSubChoiceOption(null);
       }
     },
-    [buildPayload, consentGivenAtSubmit, resolveCtaViewFromOption]
+    [buildPayload, consentGivenAtSubmit, consentGivenEver, resolveCtaViewFromOption]
   );
 
   const handleSelectSubChoice = useCallback((_optionId: string, subChoiceIndex: number) => {
@@ -478,16 +494,21 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
                 answers={answers}
                 currentIndex={questionIndex}
                 onAnswersChange={setAnswers}
-                onStepChange={(idx, answersSoFar) => {
+                onStepChange={(idx, answersSoFar, opts) => {
+                  if (opts?.consentGiven === true) {
+                    setConsentGivenEver(true);
+                  }
                   if (idx > questionIndex) {
                     // Last step = question they just completed (current index), not the one they're moving to
                     const completedQ = getFirstQuestionOfLogicalStep(questions, questionIndex);
+                    const consentToSend = opts?.consentGiven === true || consentGivenEver;
                     sendProgress(
                       "questions",
                       answersSoFar ?? answers,
                       questionIndex,
                       completedQ?.id,
-                      completedQ?.question
+                      completedQ?.question,
+                      consentToSend
                     );
                   }
                   setQuestionIndex(idx);

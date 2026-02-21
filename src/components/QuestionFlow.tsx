@@ -17,7 +17,7 @@ interface QuestionFlowProps {
   answers: Record<string, string | string[]>;
   currentIndex: number;
   onAnswersChange: (answers: Record<string, string | string[]>) => void;
-  onStepChange: (index: number, answersSoFar?: Record<string, string | string[]>) => void;
+  onStepChange: (index: number, answersSoFar?: Record<string, string | string[]>, opts?: { consentGiven?: boolean }) => void;
   onComplete: (answersSoFar?: Record<string, string | string[]>, opts?: { consentGiven?: boolean }) => void;
   onBack: () => void;
   stepName: string;
@@ -58,7 +58,7 @@ export function QuestionFlow({
   ) => {
     const next = answersWithCurrent ?? answers;
     if (currentIndex < logicalSteps.length - 1) {
-      onStepChange(currentIndex + 1, next);
+      onStepChange(currentIndex + 1, next, opts);
     } else {
       onComplete(next, opts);
     }
