@@ -477,7 +477,7 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
             textColor={announcement!.textColor ?? "#ffffff"}
           />
         )}
-        <div className={showAnnouncement ? "flex-1 min-h-0 overflow-hidden flex flex-col" : undefined}>
+        <div className={showAnnouncement ? "flex-1 min-h-0 overflow-y-auto flex flex-col" : undefined}>
           {step === "hero" && config.hero && (
             <Hero config={config.hero} onStart={handleStart} fillContainer={!!showAnnouncement} />
           )}
