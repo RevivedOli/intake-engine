@@ -21,8 +21,8 @@ export function Hero({ config, onStart, fillContainer }: HeroProps) {
 
   const minHeightClass = fillContainer ? "min-h-full" : "min-h-screen";
   const outerClasses = [
-    `${minHeightClass} flex flex-col p-6 sm:p-8 transition-opacity duration-300 animate-fade-in`,
-    isCentered ? "items-center justify-center" : isLeft ? "items-start justify-center" : "items-center justify-center",
+    `${minHeightClass} flex flex-col p-4 sm:p-8 overflow-y-auto transition-opacity duration-300 animate-fade-in`,
+    isCentered ? "items-center justify-start sm:justify-center" : isLeft ? "items-start justify-start sm:justify-center" : "items-center justify-start sm:justify-center",
   ].join(" ");
 
   const innerAlign = isCentered ? "text-center" : "text-left";
@@ -38,7 +38,7 @@ export function Hero({ config, onStart, fillContainer }: HeroProps) {
     >
       <div className={`max-w-xl w-full ${innerAlign}`}>
         {config.logoUrl && (
-          <div className={`mb-8 flex ${innerJustify}`}>
+          <div className={`mb-4 sm:mb-8 flex ${innerJustify}`}>
             <img
               src={config.logoUrl}
               alt=""
@@ -49,30 +49,30 @@ export function Hero({ config, onStart, fillContainer }: HeroProps) {
           </div>
         )}
         {config.imageUrl && (
-          <div className={`mb-6 flex ${innerJustify}`}>
+          <div className={`mb-4 sm:mb-6 flex ${innerJustify}`}>
             <img
               src={config.imageUrl}
               alt=""
-              className="w-full max-h-52 sm:max-h-64 object-contain"
+              className="w-full max-h-40 sm:max-h-64 object-contain"
               fetchPriority="high"
               loading="eager"
             />
           </div>
         )}
         {config.title && (
-          <h1 className="text-3xl sm:text-4xl font-bold mb-6 text-white/95">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-4 sm:mb-6 text-white/95">
             {config.title}
           </h1>
         )}
         <div
-          className={`space-y-4 mb-8 text-white/80 text-base sm:text-lg leading-relaxed ${innerAlign}`}
+          className={`space-y-3 sm:space-y-4 mb-6 sm:mb-8 text-white/80 text-base sm:text-lg leading-relaxed ${innerAlign}`}
         >
           {config.body.map((paragraph, i) => (
             <p key={i}>{paragraph}</p>
           ))}
         </div>
         {config.ctaLabel && (
-          <p className={`text-white/70 text-sm mb-4 ${innerAlign}`}>
+          <p className={`text-white/70 text-sm mb-3 sm:mb-4 ${innerAlign}`}>
             {config.ctaLabel}
           </p>
         )}
