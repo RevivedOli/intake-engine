@@ -206,7 +206,7 @@ export function QuestionsOnePage({
                     onChange={(v) => setAnswer(q.id, v)}
                     onNext={noopNext}
                     required
-                    singlePageMode
+                    singlePageMode={true}
                   />
                 )}
                 {q.type === "text" && (
@@ -218,7 +218,8 @@ export function QuestionsOnePage({
                     onNext={noopNext}
                     required
                     submitButtonLabel={q.submitButtonLabel ?? config?.textQuestionButtonLabel}
-                    singlePageMode
+                    singlePageMode={true}
+                    omitFormWrapper={true}
                   />
                 )}
               </section>

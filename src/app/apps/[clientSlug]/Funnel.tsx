@@ -286,11 +286,13 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
     const idx = config.steps.indexOf("questions");
     if (idx >= 0) {
       setQuestionIndex(0);
-      moveToStep("questions", idx, answers);
+      if (!isSinglePageWithHero) {
+        moveToStep("questions", idx, answers);
+      }
       const firstQ = getFirstQuestionOfLogicalStep(questions, 0);
       sendProgress("questions", answers, 0, firstQ?.id, firstQ?.question, consentGivenEver);
     }
-  }, [config.steps, answers, moveToStep, sendProgress, questions, consentGivenEver]);
+  }, [config.steps, answers, moveToStep, sendProgress, questions, consentGivenEver, isSinglePageWithHero]);
 
   const handleQuestionsBack = useCallback(() => {
     if (questionIndex > 0) {
