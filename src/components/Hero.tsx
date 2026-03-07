@@ -8,9 +8,11 @@ interface HeroProps {
   onStart: () => void;
   /** When true, use min-h-full to fill the container (e.g. when announcement banner reduces viewport) */
   fillContainer?: boolean;
+  /** When set, CTA button scrolls to this selector (e.g. form section) and optionally calls onStart for analytics */
+  scrollToSelector?: string | null;
 }
 
-export function Hero({ config, onStart, fillContainer }: HeroProps) {
+export function Hero({ config, onStart, fillContainer, scrollToSelector }: HeroProps) {
   const theme = useTheme();
   const bg = theme.background ?? "#1a2e28";
   const primary = theme.primaryColor ?? "#a47f4c";
@@ -79,7 +81,14 @@ export function Hero({ config, onStart, fillContainer }: HeroProps) {
         <div className={isCentered ? "flex justify-center" : "flex justify-start"}>
           <button
             type="button"
-            onClick={onStart}
+            onClick={() => {
+              if (scrollToSelector) {
+                document.querySelector(scrollToSelector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                onStart();
+              } else {
+                onStart();
+              }
+            }}
             className="px-8 py-3 rounded-lg font-semibold text-white transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-white/50"
             style={{ backgroundColor: primary }}
           >

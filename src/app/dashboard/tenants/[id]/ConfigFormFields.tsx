@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import type { AppConfig, FlowStep } from "@/types/config";
+import type { AppConfig, FlowStep, QuestionsDisplayMode, SinglePageContactPosition } from "@/types/config";
 import { ImageUrlField } from "@/components/ImageUrlField";
 
 const inputClass =
@@ -392,6 +392,60 @@ export function ConfigFormFields({
             />
           </div>
         </div>
+      </section>
+
+      {/* Questions display mode */}
+      <section className="space-y-4">
+        <h3 className="text-lg font-medium text-zinc-200">Questions display</h3>
+        <p className={hintClass}>
+          Step-by-step shows one question at a time. Single page shows all questions on one scrollable form (like Google Forms).
+        </p>
+        <div>
+          <label className={labelClass}>Display mode</label>
+          <div className="flex gap-4 mt-2">
+            {[
+              { value: "step_by_step" as QuestionsDisplayMode, label: "Step-by-step" },
+              { value: "single_page" as QuestionsDisplayMode, label: "Single page" },
+            ].map((o) => (
+              <label key={o.value} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="questionsDisplayMode"
+                  checked={(config.questionsDisplayMode ?? "step_by_step") === o.value}
+                  onChange={() =>
+                    onChange({
+                      ...config,
+                      questionsDisplayMode: o.value,
+                    })
+                  }
+                  className="rounded border-zinc-600 text-zinc-200 focus:ring-zinc-500"
+                />
+                <span className="text-zinc-200">{o.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        {(config.questionsDisplayMode ?? "step_by_step") === "single_page" && (
+          <div>
+            <label className={labelClass}>Contact block on single page</label>
+            <select
+              value={config.singlePageContactPosition ?? "inline"}
+              onChange={(e) =>
+                onChange({
+                  ...config,
+                  singlePageContactPosition: e.target.value as SinglePageContactPosition,
+                })
+              }
+              className={inputClass}
+            >
+              <option value="inline">Inline (in question order)</option>
+              <option value="bottom">At bottom</option>
+            </select>
+            <p className={hintClass}>
+              Where to show contact fields: in their normal order among questions, or grouped at the end.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Steps */}

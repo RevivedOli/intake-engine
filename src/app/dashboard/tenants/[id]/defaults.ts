@@ -170,6 +170,8 @@ export function normalizeConfig(raw: unknown): AppConfig {
       layout: (theme.layout === "left" || theme.layout === "full-width" ? theme.layout : "centered") as AppConfig["theme"]["layout"],
     },
     steps: steps.length ? steps : [...DEFAULT_STEPS],
+    questionsDisplayMode: c.questionsDisplayMode === "single_page" ? "single_page" : "step_by_step",
+    singlePageContactPosition: c.singlePageContactPosition === "bottom" ? "bottom" : "inline",
     siteTitle: typeof c.siteTitle === "string" ? c.siteTitle : undefined,
     faviconUrl: typeof c.faviconUrl === "string" ? c.faviconUrl : undefined,
     hero: hero

@@ -63,6 +63,49 @@ function buildE164(code: string, nationalDigits: string): string {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const INSTAGRAM_HANDLE_RE = /^[a-zA-Z0-9._]+$/;
 
+/** Pure validation for contact block (e.g. used by single-page form submit). */
+export function validateContactBlock(
+  questions: Question[],
+  answers: Record<string, string | string[]>,
+  opts?: { consentRequired?: boolean; consentChecked?: boolean }
+): { valid: boolean; errors: Record<string, string> } {
+  const errors: Record<string, string> = {};
+  let valid = true;
+  for (const q of questions) {
+    const v = ((answers[q.id] as string) ?? "").trim();
+    const required = q.required !== false;
+    if (required && !v) {
+      errors[q.id] = "This field is required.";
+      valid = false;
+    } else if (v) {
+      const kind = q.contactKind ?? "email";
+      if (kind === "email" && !EMAIL_RE.test(v)) {
+        errors[q.id] = "Please enter a valid email.";
+        valid = false;
+      } else if (kind === "tel") {
+        const digits = v.replace(/\D/g, "");
+        if (digits.length < 10) {
+          errors[q.id] = "Please enter a valid phone number.";
+          valid = false;
+        }
+      } else if (kind === "instagram") {
+        const handle = v.replace(/^@/, "").trim();
+        if (handle.length === 0) {
+          errors[q.id] = "Please enter your Instagram handle.";
+          valid = false;
+        } else if (handle.length > 30 || !INSTAGRAM_HANDLE_RE.test(handle)) {
+          errors[q.id] = "Please enter a valid Instagram handle (letters, numbers, dots, underscores only).";
+          valid = false;
+        }
+      }
+    }
+  }
+  if (opts?.consentRequired && !opts?.consentChecked) {
+    valid = false;
+  }
+  return { valid, errors };
+}
+
 export interface PrivacyPolicyLink {
   href: string;
   openInNewTab: boolean;
@@ -87,6 +130,10 @@ interface QuestionContactBlockProps {
   /** Controlled consent checked state so it persists when user types (avoids unchecked on re-render) */
   consentChecked?: boolean;
   onConsentChange?: (checked: boolean) => void;
+  /** When true, render fields only (no form, no submit button); for use inside a parent form (e.g. single-page). */
+  fieldsOnly?: boolean;
+  /** When fieldsOnly, optional errors from parent submit validation to display. */
+  externalErrors?: Record<string, string>;
 }
 
 export function QuestionContactBlock({
@@ -101,6 +148,8 @@ export function QuestionContactBlock({
   freebiePreview,
   consentChecked: consentCheckedProp,
   onConsentChange,
+  fieldsOnly = false,
+  externalErrors,
 }: QuestionContactBlockProps) {
   const theme = useTheme();
   const primary = theme.primaryColor ?? "#a47f4c";
@@ -140,17 +189,19 @@ export function QuestionContactBlock({
     return null;
   }
 
-  const errors: Record<string, string> = {};
-  let canSubmit = true;
-  for (const q of questions) {
-    const err = validateQuestion(q);
-    if (err) {
-      if (touched[q.id]) errors[q.id] = err;
-      canSubmit = false;
+  const displayErrors: Record<string, string> = externalErrors ? { ...externalErrors } : {};
+  if (!externalErrors) {
+    for (const q of questions) {
+      const err = validateQuestion(q);
+      if (err && touched[q.id]) displayErrors[q.id] = err;
     }
   }
-  if (showConsent && !consentChecked) {
-    canSubmit = false;
+  let canSubmit = true;
+  if (!fieldsOnly) {
+    for (const q of questions) {
+      if (validateQuestion(q)) canSubmit = false;
+    }
+    if (showConsent && !consentChecked) canSubmit = false;
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -176,12 +227,15 @@ export function QuestionContactBlock({
   const hasImage = questions.some((q) => q.imageUrl?.trim());
   const imageUrl = firstQuestion?.imageUrl?.trim();
 
+  const Wrapper = fieldsOnly ? "div" : "form";
+  const wrapperProps = fieldsOnly ? {} : { onSubmit: handleSubmit };
+
   return (
     <div
       className="animate-fade-in-up max-w-xl mx-auto min-w-0 w-full px-6 sm:px-8"
       style={{ fontFamily }}
     >
-      <form onSubmit={handleSubmit}>
+      <Wrapper {...wrapperProps}>
         <p className="text-xl sm:text-2xl text-white/95 mb-2">
           {firstQuestion?.question ?? "Contact details"}
           {questions.some((q) => q.required !== false) && <span className="text-amber-400">*</span>}
@@ -202,7 +256,7 @@ export function QuestionContactBlock({
                 question={q}
                 value={(answers[q.id] as string) ?? ""}
                 onChange={(v) => setAnswer(q.id, v)}
-                error={errors[q.id]}
+                error={displayErrors[q.id]}
                 onBlur={() => setTouched((t) => ({ ...t, [q.id]: true }))}
                 onFocus={scrollInputAboveKeyboard}
               />
@@ -243,53 +297,57 @@ export function QuestionContactBlock({
           ))}
         </div>
 
-        <div className="mt-6 flex justify-center">
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="px-6 py-2.5 rounded-full font-medium text-white focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-            style={{ backgroundColor: primary }}
-          >
-            {submitButtonLabel}
-          </button>
-        </div>
-
-        {freebiePreview && freebiePreview.options.length > 0 && (
-          <div className="mt-6">
-            {freebiePreview.prompt?.trim() && (
-              <p className="text-white/80 text-center mb-4 text-sm">
-                {freebiePreview.prompt.trim()}
-              </p>
-            )}
-            <div className="flex flex-col gap-3">
-              {freebiePreview.options.map((option) => (
-                <div
-                  key={option.id}
-                  className="w-full px-6 py-3 rounded-lg font-medium text-left text-white/60 border border-white/20 opacity-50 cursor-not-allowed flex items-center gap-2"
-                  style={{ fontFamily }}
-                  aria-hidden
-                >
-                  <svg
-                    className="w-4 h-4 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
-                  </svg>
-                  {option.label}
-                </div>
-              ))}
+        {!fieldsOnly && (
+          <>
+            <div className="mt-6 flex justify-center">
+              <button
+                type="submit"
+                disabled={!canSubmit}
+                className="px-6 py-2.5 rounded-full font-medium text-white focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                style={{ backgroundColor: primary }}
+              >
+                {submitButtonLabel}
+              </button>
             </div>
-          </div>
+
+            {freebiePreview && freebiePreview.options.length > 0 && (
+              <div className="mt-6">
+                {freebiePreview.prompt?.trim() && (
+                  <p className="text-white/80 text-center mb-4 text-sm">
+                    {freebiePreview.prompt.trim()}
+                  </p>
+                )}
+                <div className="flex flex-col gap-3">
+                  {freebiePreview.options.map((option) => (
+                    <div
+                      key={option.id}
+                      className="w-full px-6 py-3 rounded-lg font-medium text-left text-white/60 border border-white/20 opacity-50 cursor-not-allowed flex items-center gap-2"
+                      style={{ fontFamily }}
+                      aria-hidden
+                    >
+                      <svg
+                        className="w-4 h-4 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                        />
+                      </svg>
+                      {option.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
-      </form>
+      </Wrapper>
     </div>
   );
 }

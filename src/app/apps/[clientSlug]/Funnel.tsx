@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { Hero } from "@/components/Hero";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { QuestionFlow } from "@/components/QuestionFlow";
+import { QuestionsOnePage } from "@/components/QuestionsOnePage";
 import { ResultScreen } from "@/components/ResultScreen";
 import type { AppConfig, FlowStep, IntakeResult } from "@/types";
 import type {
@@ -112,10 +113,16 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
     }
   }, [config.faviconUrl]);
 
-  const [step, setStep] = useState<FlowStep | "result">(
-    config.steps[0] ?? "hero"
-  );
-  const [stepIndex, setStepIndex] = useState(0);
+  const isSinglePage = (config.questionsDisplayMode ?? "step_by_step") === "single_page";
+  const isSinglePageWithHero =
+    isSinglePage && !!config.hero && (config.steps?.includes("hero") ?? false);
+  const initialStep = isSinglePage ? "questions" : (config.steps[0] ?? "hero");
+  const initialStepIndex = isSinglePage
+    ? Math.max(0, config.steps.indexOf("questions"))
+    : 0;
+
+  const [step, setStep] = useState<FlowStep | "result">(initialStep);
+  const [stepIndex, setStepIndex] = useState(initialStepIndex);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const derivedContact = useMemo(
@@ -456,7 +463,9 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
   const showAnnouncement =
     announcement?.enabled &&
     announcement.message?.trim() &&
-    (announcement.scope === "full" || (announcement.scope === "hero" && step === "hero"));
+    (announcement.scope === "full" ||
+      (announcement.scope === "hero" &&
+        (step === "hero" || (isSinglePageWithHero && step === "questions"))));
 
   return (
     <ThemeProvider theme={config.theme}>
@@ -478,8 +487,13 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
           />
         )}
         <div className={showAnnouncement ? "flex-1 min-h-0 overflow-y-auto flex flex-col" : undefined}>
-          {step === "hero" && config.hero && (
-            <Hero config={config.hero} onStart={handleStart} fillContainer={!!showAnnouncement} />
+          {(step === "hero" || (isSinglePageWithHero && step === "questions")) && config.hero && (
+            <Hero
+              config={config.hero}
+              onStart={handleStart}
+              fillContainer={!!showAnnouncement && !isSinglePageWithHero}
+              scrollToSelector={isSinglePageWithHero ? "#intake-questions" : undefined}
+            />
           )}
 
           {step === "questions" && questions.length > 0 && (
@@ -489,37 +503,50 @@ export function Funnel({ appId, config, questions, tenantName }: FunnelProps) {
                   {error}
                 </p>
               )}
-              <QuestionFlow
-                questions={questions}
-                answers={answers}
-                currentIndex={questionIndex}
-                onAnswersChange={setAnswers}
-                onStepChange={(idx, answersSoFar, opts) => {
-                  if (opts?.consentGiven === true) {
-                    setConsentGivenEver(true);
-                  }
-                  if (idx > questionIndex) {
-                    // Last step = question they just completed (current index), not the one they're moving to
-                    const completedQ = getFirstQuestionOfLogicalStep(questions, questionIndex);
-                    const consentToSend = opts?.consentGiven === true || consentGivenEver;
-                    sendProgress(
-                      "questions",
-                      answersSoFar ?? answers,
-                      questionIndex,
-                      completedQ?.id,
-                      completedQ?.question,
-                      consentToSend
-                    );
-                  }
-                  setQuestionIndex(idx);
-                }}
-                onComplete={handleQuestionsComplete}
-                onBack={handleQuestionsBack}
-                stepName="questions"
-                textQuestionButtonLabel={config.textQuestionButtonLabel}
-                config={config}
-                fillContainer={!!showAnnouncement}
-              />
+              {isSinglePage ? (
+                <QuestionsOnePage
+                  questions={questions}
+                  answers={answers}
+                  onAnswersChange={setAnswers}
+                  onComplete={handleQuestionsComplete}
+                  config={config}
+                  singlePageContactPosition={config.singlePageContactPosition ?? "inline"}
+                  fillContainer={!!showAnnouncement}
+                  formSectionId={isSinglePageWithHero ? "intake-questions" : undefined}
+                />
+              ) : (
+                <QuestionFlow
+                  questions={questions}
+                  answers={answers}
+                  currentIndex={questionIndex}
+                  onAnswersChange={setAnswers}
+                  onStepChange={(idx, answersSoFar, opts) => {
+                    if (opts?.consentGiven === true) {
+                      setConsentGivenEver(true);
+                    }
+                    if (idx > questionIndex) {
+                      // Last step = question they just completed (current index), not the one they're moving to
+                      const completedQ = getFirstQuestionOfLogicalStep(questions, questionIndex);
+                      const consentToSend = opts?.consentGiven === true || consentGivenEver;
+                      sendProgress(
+                        "questions",
+                        answersSoFar ?? answers,
+                        questionIndex,
+                        completedQ?.id,
+                        completedQ?.question,
+                        consentToSend
+                      );
+                    }
+                    setQuestionIndex(idx);
+                  }}
+                  onComplete={handleQuestionsComplete}
+                  onBack={handleQuestionsBack}
+                  stepName="questions"
+                  textQuestionButtonLabel={config.textQuestionButtonLabel}
+                  config={config}
+                  fillContainer={!!showAnnouncement}
+                />
+              )}
             </>
           )}
 
