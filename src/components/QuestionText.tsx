@@ -15,6 +15,8 @@ interface QuestionTextProps {
   submitButtonLabel?: string;
   /** When true, hide the submit button (e.g. single-page form with one Submit at bottom). */
   singlePageMode?: boolean;
+  /** When true, never use a form wrapper (avoids nested form when inside QuestionsOnePage). */
+  omitFormWrapper?: boolean;
 }
 
 export function QuestionText({
@@ -26,6 +28,7 @@ export function QuestionText({
   required,
   submitButtonLabel = "OK",
   singlePageMode = false,
+  omitFormWrapper = false,
 }: QuestionTextProps) {
   const theme = useTheme();
   const primary = theme.primaryColor ?? "#a47f4c";
@@ -60,8 +63,9 @@ export function QuestionText({
     }, 400);
   };
 
-  const Wrapper = singlePageMode ? "div" : "form";
-  const wrapperProps = singlePageMode ? {} : { onSubmit: handleSubmit };
+  const useFormWrapper = !singlePageMode && !omitFormWrapper;
+  const Wrapper = useFormWrapper ? "form" : "div";
+  const wrapperProps = useFormWrapper ? { onSubmit: handleSubmit } : {};
 
   return (
     <div
@@ -105,7 +109,7 @@ export function QuestionText({
             </p>
           )}
         </div>
-        {!singlePageMode && (
+        {!singlePageMode && !omitFormWrapper && (
           <div className="mt-6 flex justify-center">
             <button
               type="submit"
