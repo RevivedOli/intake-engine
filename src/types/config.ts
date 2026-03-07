@@ -151,9 +151,19 @@ export type CtaResolvedView =
   | { kind: "discount"; title: string; description?: string; linkUrl: string; linkLabel?: string; code: string }
   | { kind: "embed_video"; videoUrl: string; title?: string; subtitle?: string; button?: { label: string; url: string; color?: string } };
 
+/** How questions are shown: one at a time (carousel) or all on one scrollable page */
+export type QuestionsDisplayMode = "step_by_step" | "single_page";
+
+/** When single-page: contact block inline in question order or fixed at bottom */
+export type SinglePageContactPosition = "inline" | "bottom";
+
 export interface AppConfig {
   theme: AppTheme;
   steps: FlowStep[];
+  /** Step-by-step (one question at a time) or single page (all on one form). Default step_by_step. */
+  questionsDisplayMode?: QuestionsDisplayMode;
+  /** When questionsDisplayMode is single_page: contact block inline or at bottom. Default inline. */
+  singlePageContactPosition?: SinglePageContactPosition;
   /** Optional browser tab title (fallback: tenant name) */
   siteTitle?: string;
   /** Optional favicon URL (image) */

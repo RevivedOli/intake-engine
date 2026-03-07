@@ -13,6 +13,8 @@ interface QuestionTextProps {
   required?: boolean;
   /** Button label (e.g. "OK", "Next"). Defaults to "OK". */
   submitButtonLabel?: string;
+  /** When true, hide the submit button (e.g. single-page form with one Submit at bottom). */
+  singlePageMode?: boolean;
 }
 
 export function QuestionText({
@@ -23,6 +25,7 @@ export function QuestionText({
   onNext,
   required,
   submitButtonLabel = "OK",
+  singlePageMode = false,
 }: QuestionTextProps) {
   const theme = useTheme();
   const primary = theme.primaryColor ?? "#a47f4c";
@@ -46,7 +49,7 @@ export function QuestionText({
     e.preventDefault();
     setTouched(true);
     if (required && !value.trim()) return;
-    onNext({ ...answers, [question.id]: value });
+    if (!singlePageMode) onNext({ ...answers, [question.id]: value });
   };
 
   /** On mobile, scroll focused textarea to bottom of viewport (just above keyboard) after keyboard opens */
@@ -57,12 +60,15 @@ export function QuestionText({
     }, 400);
   };
 
+  const Wrapper = singlePageMode ? "div" : "form";
+  const wrapperProps = singlePageMode ? {} : { onSubmit: handleSubmit };
+
   return (
     <div
       className="animate-fade-in-up max-w-xl mx-auto"
       style={{ fontFamily }}
     >
-      <form onSubmit={handleSubmit}>
+      <Wrapper {...wrapperProps}>
         <p className="text-xl sm:text-2xl text-white/95 mb-2">
           {question.question}
           {required && <span className="text-amber-400">*</span>}
@@ -99,16 +105,18 @@ export function QuestionText({
             </p>
           )}
         </div>
-        <div className="mt-6 flex justify-center">
-          <button
-            type="submit"
-            className="px-6 py-3 rounded-lg font-medium text-white focus:outline-none focus:ring-2 focus:ring-white/50"
-            style={{ backgroundColor: primary }}
-          >
-            {submitButtonLabel}
-          </button>
-        </div>
-      </form>
+        {!singlePageMode && (
+          <div className="mt-6 flex justify-center">
+            <button
+              type="submit"
+              className="px-6 py-3 rounded-lg font-medium text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+              style={{ backgroundColor: primary }}
+            >
+              {submitButtonLabel}
+            </button>
+          </div>
+        )}
+      </Wrapper>
     </div>
   );
 }

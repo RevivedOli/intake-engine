@@ -159,49 +159,50 @@ export async function POST(request: NextRequest) {
 
     const webhookUrl = getWebhookUrl();
 
+    // Single forwarding path: choose URL and opts, then await one forward (no fire-and-forget)
+    let forwardUrl: string | undefined;
+    let forwardOpts: { ctaTag?: string } | undefined;
+
     if (payload.event === "progress") {
-      if (!webhookUrl) {
-        console.log(
-          `[intake] Progress skipped (no webhook URL) app_id=${payload.app_id}`
-        );
-        return NextResponse.json({ ok: true });
+      forwardUrl = webhookUrl ?? undefined;
+    } else {
+      const ctaAction = parseCtaAction(body);
+      if (ctaAction) {
+        forwardUrl = (ctaAction.cta_webhook_url || webhookUrl) ?? undefined;
+        forwardOpts = { ctaTag: ctaAction.cta_tag };
+      } else {
+        forwardUrl = webhookUrl ?? undefined;
       }
-      await forwardPayloadToWebhook(webhookUrl, payload);
-      console.log(`[intake] Progress forwarded app_id=${payload.app_id}`);
-      return NextResponse.json({ ok: true });
     }
 
-    // --- submit: await forward so serverless keeps running until n8n receives it ---
-    const ctaAction = parseCtaAction(body);
-    const targetUrl = ctaAction?.cta_webhook_url || webhookUrl;
-
-    if (ctaAction) {
-      if (targetUrl) {
-        const appId = payload.app_id;
-        const ctaTag = ctaAction.cta_tag;
-        console.log(
-          `[intake] CTA webhook forwarding app_id=${appId} cta_tag=${ctaTag}`
-        );
-        await forwardPayloadToWebhook(targetUrl, payload, { ctaTag });
-        console.log(
-          `[intake] CTA webhook forwarded app_id=${appId} cta_tag=${ctaTag}`
-        );
-      }
-      return NextResponse.json({ ok: true });
-    }
-
-    // Initial form submit: await main webhook
-    if (webhookUrl) {
+    if (forwardUrl) {
       const appId = payload.app_id;
-      console.log(`[intake] Submit forwarding app_id=${appId}`);
-      await forwardPayloadToWebhook(webhookUrl, payload);
-      console.log(`[intake] Submit forwarded app_id=${appId}`);
+      if (payload.event === "progress") {
+        console.log(`[intake] Progress forwarding app_id=${appId}`);
+      } else if (forwardOpts?.ctaTag) {
+        console.log(
+          `[intake] CTA webhook forwarding app_id=${appId} cta_tag=${forwardOpts.ctaTag}`
+        );
+      } else {
+        console.log(`[intake] Submit forwarding app_id=${appId}`);
+      }
+      await forwardPayloadToWebhook(forwardUrl, payload, forwardOpts);
+      if (payload.event === "progress") {
+        console.log(`[intake] Progress forwarded app_id=${appId}`);
+      } else if (forwardOpts?.ctaTag) {
+        console.log(
+          `[intake] CTA webhook forwarded app_id=${appId} cta_tag=${forwardOpts.ctaTag}`
+        );
+      } else {
+        console.log(`[intake] Submit forwarded app_id=${appId}`);
+      }
     } else {
       console.log(
-        `[intake] Submit skipped (no webhook URL) app_id=${payload.app_id}`
+        `[intake] ${payload.event} skipped (no webhook URL) app_id=${payload.app_id}`
       );
     }
-    return NextResponse.json({ ok: true, useCtaConfig: true });
+
+    return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Request to n8n failed";
     const appId = payload?.app_id ?? "?";

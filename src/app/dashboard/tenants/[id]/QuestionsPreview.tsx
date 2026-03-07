@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { AppConfig } from "@/types/config";
+import type { AppConfig, QuestionsDisplayMode } from "@/types/config";
 import type { Question } from "@/types/question";
 import { getPrivacyPolicyLink, isConsentRequired, getContactConsentLabel } from "@/lib/privacy-policy";
 
@@ -219,6 +219,9 @@ export function QuestionsPreview({
 }) {
   const [width, setWidth] = useState<number | "100%">(360);
   const [index, setIndex] = useState(0);
+  const [previewMode, setPreviewMode] = useState<QuestionsDisplayMode>(
+    () => config.questionsDisplayMode ?? "step_by_step"
+  );
   const theme = config.theme ?? {};
   const primary = theme.primaryColor ?? "#4a6b5a";
   const bg = theme.background ?? "#0d1f18";
@@ -243,30 +246,53 @@ export function QuestionsPreview({
     >
       <div className="px-3 py-2 border-b border-zinc-600 bg-zinc-800/80 text-zinc-400 text-xs font-medium flex items-center justify-between gap-2 flex-wrap">
         <span>Live preview</span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {count > 0 && (
             <>
-              <button
-                type="button"
-                onClick={() => setIndex((i) => Math.max(0, i - 1))}
-                disabled={safeIndex === 0}
-                className="rounded bg-zinc-700 border border-zinc-600 text-zinc-200 px-2 py-1 disabled:opacity-40"
-                aria-label="Previous question"
-              >
-                Prev
-              </button>
-              <span className="text-zinc-500">
-                {safeIndex + 1} of {count}
-              </span>
-              <button
-                type="button"
-                onClick={() => setIndex((i) => Math.min(count - 1, i + 1))}
-                disabled={safeIndex === count - 1}
-                className="rounded bg-zinc-700 border border-zinc-600 text-zinc-200 px-2 py-1 disabled:opacity-40"
-                aria-label="Next question"
-              >
-                Next
-              </button>
+              <span className="text-zinc-500">Mode:</span>
+              <div className="flex rounded bg-zinc-700 border border-zinc-600 overflow-hidden">
+                {(
+                  [
+                    { value: "step_by_step" as const, label: "Step-by-step" },
+                    { value: "single_page" as const, label: "Single page" },
+                  ] as const
+                ).map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => setPreviewMode(o.value)}
+                    className={`px-2 py-1 text-xs ${previewMode === o.value ? "bg-zinc-600 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
+                    aria-label={`Preview ${o.label}`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              {previewMode === "step_by_step" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIndex((i) => Math.max(0, i - 1))}
+                    disabled={safeIndex === 0}
+                    className="rounded bg-zinc-700 border border-zinc-600 text-zinc-200 px-2 py-1 disabled:opacity-40"
+                    aria-label="Previous question"
+                  >
+                    Prev
+                  </button>
+                  <span className="text-zinc-500">
+                    {safeIndex + 1} of {count}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIndex((i) => Math.min(count - 1, i + 1))}
+                    disabled={safeIndex === count - 1}
+                    className="rounded bg-zinc-700 border border-zinc-600 text-zinc-200 px-2 py-1 disabled:opacity-40"
+                    aria-label="Next question"
+                  >
+                    Next
+                  </button>
+                </>
+              )}
             </>
           )}
           <select
@@ -288,21 +314,54 @@ export function QuestionsPreview({
         </div>
       </div>
       <div
-        className="flex-1 flex flex-col justify-center min-h-[200px] transition-colors duration-150"
+        className={`flex-1 transition-colors duration-150 ${previewMode === "single_page" ? "overflow-y-auto min-h-0" : "flex flex-col justify-center min-h-[200px]"}`}
         style={{
           background: isBgImage ? `url(${bg}) center/cover` : bg,
         }}
       >
-        {current ? (
-          <QuestionPreviewCard
-            question={current}
-            primary={primary}
-            fontFamily={fontFamily}
-            textButtonLabel={textButtonLabel}
-            config={config}
-            questions={questions}
-            currentIndex={safeIndex}
-          />
+        {previewMode === "step_by_step" ? (
+          current ? (
+            <QuestionPreviewCard
+              question={current}
+              primary={primary}
+              fontFamily={fontFamily}
+              textButtonLabel={textButtonLabel}
+              config={config}
+              questions={questions}
+              currentIndex={safeIndex}
+            />
+          ) : (
+            <p className="text-white/50 text-sm text-center px-4 py-8">
+              Add questions to see preview
+            </p>
+          )
+        ) : count > 0 ? (
+          <div className="p-4 space-y-8">
+            {questions.map((q, i) => (
+              <QuestionPreviewCard
+                key={q.id}
+                question={q}
+                primary={primary}
+                fontFamily={fontFamily}
+                textButtonLabel={
+                  q.type === "text" || q.type === "contact"
+                    ? (q.submitButtonLabel ?? (config.textQuestionButtonLabel?.trim() || "OK"))
+                    : "OK"
+                }
+                config={config}
+                questions={questions}
+                currentIndex={i}
+              />
+            ))}
+            <div className="flex justify-center pt-4">
+              <span
+                className="px-6 py-2 rounded-full text-white/80 text-sm"
+                style={{ backgroundColor: primary }}
+              >
+                Submit
+              </span>
+            </div>
+          </div>
         ) : (
           <p className="text-white/50 text-sm text-center px-4 py-8">
             Add questions to see preview

@@ -10,6 +10,8 @@ interface QuestionMultiProps {
   onChange: (value: string[]) => void;
   onNext: (answersWithCurrent?: Record<string, string | string[]>) => void;
   required?: boolean;
+  /** When true, hide the OK button (e.g. single-page form with one Submit at bottom). */
+  singlePageMode?: boolean;
 }
 
 export function QuestionMulti({
@@ -19,6 +21,7 @@ export function QuestionMulti({
   onChange,
   onNext,
   required,
+  singlePageMode = false,
 }: QuestionMultiProps) {
   const theme = useTheme();
   const primary = theme.primaryColor ?? "#a47f4c";
@@ -82,14 +85,16 @@ export function QuestionMulti({
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        onClick={handleOk}
-        className="mt-6 px-6 py-3 rounded-lg font-medium text-white focus:outline-none focus:ring-2 focus:ring-white/50"
-        style={{ backgroundColor: primary }}
-      >
-        OK
-      </button>
+      {!singlePageMode && (
+        <button
+          type="button"
+          onClick={handleOk}
+          className="mt-6 px-6 py-3 rounded-lg font-medium text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+          style={{ backgroundColor: primary }}
+        >
+          OK
+        </button>
+      )}
     </div>
   );
 }
