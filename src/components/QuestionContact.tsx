@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Question } from "@/types/question";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useMobileScrollRestore } from "@/lib/mobile-scroll-restore";
 
 const COUNTRY_CODES: { code: string; label: string }[] = [
   { code: "+44", label: "UK" },
@@ -83,6 +84,7 @@ export function QuestionContact({
   const primary = theme.primaryColor ?? "#a47f4c";
   const fontFamily = theme.fontFamily ?? "var(--font-sans)";
   const [touched, setTouched] = useState(false);
+  const { onFocus: onFocusScroll, onBlur: onBlurScroll } = useMobileScrollRestore();
   const kind = question.contactKind ?? "email";
   const label = question.label?.trim() || null;
   const placeholder = question.placeholder?.trim() || (kind === "email" ? "you@example.com" : kind === "tel" ? "e.g. 7123456789" : kind === "instagram" ? "@username" : "");
@@ -117,14 +119,6 @@ export function QuestionContact({
     setTouched(true);
     if (!canSubmit) return;
     onNext({ ...answers, [question.id]: value.trim() });
-  };
-
-  /** On mobile, scroll focused input to bottom of viewport (just above keyboard) after keyboard opens */
-  const scrollInputAboveKeyboard = () => {
-    if (typeof window === "undefined" || window.innerWidth >= 640) return;
-    setTimeout(() => {
-      (document.activeElement as HTMLElement)?.scrollIntoView({ block: "end", behavior: "auto" });
-    }, 400);
   };
 
   return (
@@ -179,8 +173,11 @@ export function QuestionContact({
                 autoComplete="tel-national"
                 value={parsed.national}
                 onChange={(e) => onChange(buildE164(parsed.code, e.target.value))}
-                onFocus={scrollInputAboveKeyboard}
-                onBlur={() => setTouched(true)}
+                onFocus={onFocusScroll}
+                onBlur={() => {
+                  setTouched(true);
+                  onBlurScroll();
+                }}
                 placeholder={placeholder}
                 className="flex-1 min-w-0 py-2.5 pl-2 pr-3 bg-transparent border-0 text-white/90 placeholder-white/40 focus:outline-none focus:ring-0"
                 aria-invalid={!!error}
@@ -213,8 +210,11 @@ export function QuestionContact({
                 inputMode={kind === "email" ? "email" : "text"}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                onFocus={scrollInputAboveKeyboard}
-                onBlur={() => setTouched(true)}
+                onFocus={onFocusScroll}
+                onBlur={() => {
+                  setTouched(true);
+                  onBlurScroll();
+                }}
                 placeholder={placeholder}
                 className="flex-1 min-w-0 py-2.5 px-0 bg-transparent border-0 text-white/90 placeholder-white/40 focus:outline-none focus:ring-0"
                 aria-invalid={!!error}

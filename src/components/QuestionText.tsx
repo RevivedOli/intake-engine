@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { Question } from "@/types";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useMobileScrollRestore } from "@/lib/mobile-scroll-restore";
 
 interface QuestionTextProps {
   question: Question;
@@ -36,6 +37,7 @@ export function QuestionText({
   const [touched, setTouched] = useState(false);
   const showError = required && touched && !value.trim();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { onFocus: onFocusScroll, onBlur: onBlurScroll } = useMobileScrollRestore();
 
   function autoGrow() {
     const el = textareaRef.current;
@@ -53,14 +55,6 @@ export function QuestionText({
     setTouched(true);
     if (required && !value.trim()) return;
     if (!singlePageMode) onNext({ ...answers, [question.id]: value });
-  };
-
-  /** On mobile, scroll focused textarea to bottom of viewport (just above keyboard) after keyboard opens */
-  const scrollInputAboveKeyboard = () => {
-    if (typeof window === "undefined" || window.innerWidth >= 640) return;
-    setTimeout(() => {
-      (document.activeElement as HTMLElement)?.scrollIntoView({ block: "end", behavior: "auto" });
-    }, 400);
   };
 
   const useFormWrapper = !singlePageMode && !omitFormWrapper;
@@ -94,8 +88,11 @@ export function QuestionText({
               onChange(e.target.value);
               autoGrow();
             }}
-            onFocus={scrollInputAboveKeyboard}
-            onBlur={() => setTouched(true)}
+            onFocus={() => onFocusScroll()}
+            onBlur={() => {
+              setTouched(true);
+              onBlurScroll();
+            }}
             placeholder="Type your answer here..."
             rows={1}
             className="w-full px-0 py-3 bg-transparent border-0 border-b border-white/30 text-white/90 placeholder-white/40 text-base focus:outline-none focus:border-white/60 focus:ring-0 resize-none overflow-y-auto min-h-[2.75rem] max-h-48 rounded-none"

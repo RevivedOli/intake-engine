@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Question } from "@/types/question";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useMobileScrollRestore } from "@/lib/mobile-scroll-restore";
 
 /** Country codes for phone input (dial code, label) */
 const COUNTRY_CODES: { code: string; label: string }[] = [
@@ -155,6 +156,7 @@ export function QuestionContactBlock({
   const primary = theme.primaryColor ?? "#a47f4c";
   const fontFamily = theme.fontFamily ?? "var(--font-sans)";
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const { onFocus: onFocusScroll, onBlur: onBlurScroll } = useMobileScrollRestore();
   const [consentCheckedInternal, setConsentCheckedInternal] = useState(false);
 
   const isControlled = consentCheckedProp !== undefined && onConsentChange !== undefined;
@@ -216,13 +218,6 @@ export function QuestionContactBlock({
     );
   };
 
-  const scrollInputAboveKeyboard = () => {
-    if (typeof window === "undefined" || window.innerWidth >= 640) return;
-    setTimeout(() => {
-      (document.activeElement as HTMLElement)?.scrollIntoView({ block: "end", behavior: "auto" });
-    }, 400);
-  };
-
   const firstQuestion = questions[0];
   const hasImage = questions.some((q) => q.imageUrl?.trim());
   const imageUrl = firstQuestion?.imageUrl?.trim();
@@ -257,8 +252,11 @@ export function QuestionContactBlock({
                 value={(answers[q.id] as string) ?? ""}
                 onChange={(v) => setAnswer(q.id, v)}
                 error={displayErrors[q.id]}
-                onBlur={() => setTouched((t) => ({ ...t, [q.id]: true }))}
-                onFocus={scrollInputAboveKeyboard}
+                onBlur={() => {
+                  setTouched((t) => ({ ...t, [q.id]: true }));
+                  onBlurScroll();
+                }}
+                onFocus={onFocusScroll}
               />
               {showConsent && q.showConsentUnder && (
                 <div className="mt-4 flex items-start gap-3">
