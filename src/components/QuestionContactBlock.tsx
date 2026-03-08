@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Question } from "@/types/question";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useMobileScrollRestore } from "@/lib/mobile-scroll-restore";
+import { useTextareaScrollRestore } from "@/lib/mobile-scroll-restore";
 
 /** Country codes for phone input (dial code, label) */
 const COUNTRY_CODES: { code: string; label: string }[] = [
@@ -156,8 +156,8 @@ export function QuestionContactBlock({
   const primary = theme.primaryColor ?? "#a47f4c";
   const fontFamily = theme.fontFamily ?? "var(--font-sans)";
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const { onFocus: onFocusScroll, onBlur: onBlurScroll } = useMobileScrollRestore();
   const [consentCheckedInternal, setConsentCheckedInternal] = useState(false);
+  const { onFocus: onFocusScroll, onBlur: onBlurScroll } = useTextareaScrollRestore();
 
   const isControlled = consentCheckedProp !== undefined && onConsentChange !== undefined;
   const consentChecked = isControlled ? consentCheckedProp : consentCheckedInternal;

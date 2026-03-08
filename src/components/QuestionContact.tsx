@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Question } from "@/types/question";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useMobileScrollRestore } from "@/lib/mobile-scroll-restore";
+import { useTextareaScrollRestore } from "@/lib/mobile-scroll-restore";
 
 const COUNTRY_CODES: { code: string; label: string }[] = [
   { code: "+44", label: "UK" },
@@ -84,7 +84,7 @@ export function QuestionContact({
   const primary = theme.primaryColor ?? "#a47f4c";
   const fontFamily = theme.fontFamily ?? "var(--font-sans)";
   const [touched, setTouched] = useState(false);
-  const { onFocus: onFocusScroll, onBlur: onBlurScroll } = useMobileScrollRestore();
+  const { onFocus: onFocusScroll, onBlur: onBlurScroll } = useTextareaScrollRestore();
   const kind = question.contactKind ?? "email";
   const label = question.label?.trim() || null;
   const placeholder = question.placeholder?.trim() || (kind === "email" ? "you@example.com" : kind === "tel" ? "e.g. 7123456789" : kind === "instagram" ? "@username" : "");

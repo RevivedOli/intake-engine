@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { Question } from "@/types";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useMobileScrollRestore } from "@/lib/mobile-scroll-restore";
+import { useTextareaScrollRestore } from "@/lib/mobile-scroll-restore";
 
 interface QuestionTextProps {
   question: Question;
@@ -37,7 +37,7 @@ export function QuestionText({
   const [touched, setTouched] = useState(false);
   const showError = required && touched && !value.trim();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { onFocus: onFocusScroll, onBlur: onBlurScroll } = useMobileScrollRestore();
+  const { onFocus: onFocusScroll, onBlur: onBlurScroll } = useTextareaScrollRestore();
 
   function autoGrow() {
     const el = textareaRef.current;
